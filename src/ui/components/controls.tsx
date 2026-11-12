@@ -141,3 +141,24 @@ export function Notice({ message, onDismiss }: { message: string; onDismiss: () 
     </div>
   );
 }
+
+export interface SelectProps {
+  id: string;
+  value: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+  label: string;
+  onChange: (value: string) => void;
+}
+
+/** A native drop-down list (keyboard and screen-reader friendly by default). */
+export function Select({ id, value, options, label, onChange }: SelectProps) {
+  return (
+    <select id={id} class="field__input select" value={value} aria-label={label} onChange={(e) => onChange((e.currentTarget as HTMLSelectElement).value)}>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}

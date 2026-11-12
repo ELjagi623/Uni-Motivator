@@ -1,0 +1,37 @@
+# Builds the release zip when a version tag (v*) is pushed and attaches it to a GitHub Release.
+# (Written but never run by the project's automation: pushing a tag is done by a maintainer.)
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build the release zip
+        run: npm run release
+
+      - name: Create the GitHub Release and upload the zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" release/*.zip --title "$GITHUB_REF_NAME" --generate-notes

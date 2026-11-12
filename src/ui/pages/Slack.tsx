@@ -12,11 +12,13 @@ import {
   equivalentHint,
   settlementTexts,
   slackContextOf,
+  slackCopyVars,
   slackLiveAt,
   slackUi,
   type SlackContext,
 } from '../../state/slack';
 import { activeNow } from '../../state/now';
+import { CopyCarousel } from '../components/CopyCarousel';
 import { TickingNumber, TickingText } from '../components/Ticking';
 
 function SlackingView({ ctx }: { ctx: SlackContext }) {
@@ -43,6 +45,7 @@ function SlackingView({ ctx }: { ctx: SlackContext }) {
             <TickingText field="slack-duration" compute={(nowMs) => durationText(slackLiveAt(ctx, nowMs).seconds)} />
           </b>
         </span>
+        <CopyCarousel class="slack-copy money" scene="slacking" getVars={() => slackCopyVars(ctx, activeNow.peek())} />
         <button ref={buttonRef} type="button" id="continue-btn" class="btn slack-continue" onClick={() => endSlack(ctx.record.id, activeNow.peek())}>
           {t('slack.continue')}
         </button>
@@ -89,6 +92,7 @@ function SettlementCard({ ctx }: { ctx: SlackContext }) {
             {t('slack.minutes', { n: texts.sessionTotalMinutes })}
           </b>
         </div>
+        <CopyCarousel class="settle-copy muted money" scene="settlement" getVars={() => slackCopyVars(ctx, activeNow.peek())} />
         <button ref={buttonRef} type="button" id="settle-close" class="btn btn--primary settle-close" onClick={closeSettlement}>
           {t('slack.back')}
         </button>

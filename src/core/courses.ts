@@ -148,7 +148,13 @@ export function matchCourse(title: string, courses: readonly Course[]): Course |
 /** sessionId -> courseId for every session that belongs to one of the courses. */
 export function assignCourses(sessions: readonly Session[], courses: readonly Course[]): Map<string, string> {
   const out = new Map<string, string>();
+  const known = new Set(courses.map((c) => c.id));
   for (const s of sessions) {
+    // A manual session names its course; calendar sessions are matched by title / code.
+    if (s.source === 'manual' && s.courseId && known.has(s.courseId)) {
+      out.set(s.id, s.courseId);
+      continue;
+    }
     const c = matchCourse(s.title, courses);
     if (c) out.set(s.id, c.id);
   }

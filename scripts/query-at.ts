@@ -30,6 +30,7 @@ import { expandIcs, mergeSessions } from '../src/core/ics/expand';
 import { sessionOrdinal } from '../src/core/ordinal';
 import { convert, formatAmountMinor, formatMinor, getCurrency, isCurrencyCode, type CurrencyCode, type RateTable } from '../src/core/money';
 import { historySummary } from '../src/core/stats';
+import { expandManual, manualFromDoc } from '../src/core/manual';
 import { academicYearsOf, focusYearOf } from '../src/core/years';
 import { academicYearOf } from '../src/core/academic';
 import { slackAmountMinor, slackSeconds } from '../src/core/slack';
@@ -102,7 +103,8 @@ function main(): void {
   const marks = (marksDoc.marks && typeof marksDoc.marks === 'object' ? marksDoc.marks : {}) as MarkMap;
   const records = (Array.isArray(slacksDoc.records) ? slacksDoc.records : []) as SlackRecord[];
 
-  const sessions: Session[] = mergeSessions(files.map((f) => expandIcs(fs.readFileSync(path.join(calDir, f), 'utf8'))));
+  // Calendar classes plus the classes added by hand (the `manual` part of marks.json), like the app.
+  const sessions: Session[] = mergeSessions([...files.map((f) => expandIcs(fs.readFileSync(path.join(calDir, f), 'utf8'))), expandManual(manualFromDoc(marksDoc.manual))]);
   const assigned = assignCourses(sessions, courses);
   const billable = sessionsOfCourses(sessions, courses).map((s) => ({ ...s, courseId: assigned.get(s.id) as string }));
   const creditMap: Record<string, number | null> = {};
@@ -223,7 +225,18 @@ function main(): void {
       cancelledMinor: markSummary.cancelledMinor,
       skippedMinor: markSummary.skippedMinor,
       attendanceRate: markSummary.attendanceRate,
+      lateMinor: markSummary.lateMinor,
+      earlyMinor: markSummary.earlyMinor,
+      lateMinutes: markSummary.lateMinutes,
+      earlyMinutes: markSummary.earlyMinutes,
+      lostMinor: markSummary.lostMinor,
+      // the same figures per academic year (the session list's cards follow the year of the shown week)
+      byYear: years.map((y) => {
+        const m = summarizeMarks(allPools.filter((p) => p.year === y.year), marks, { asOfMs: nowMs }).total;
+        return { year: y.year, cancelledMinor: m.cancelledMinor, skippedMinor: m.skippedMinor, lateEarlyMinor: m.lateMinor + m.earlyMinor, attendanceRate: m.attendanceRate };
+      }),
       formatted: {
+        'late-early-amount': formatMinor(markSummary.lateMinor + markSummary.earlyMinor, currency),
         'cancelled-amount': formatMinor(markSummary.cancelledMinor, currency),
         'skipped-amount': formatMinor(markSummary.skippedMinor, currency),
         'attendance-rate': markSummary.attendanceRate === null ? '—' : `${Math.round(markSummary.attendanceRate * 100)}%`,

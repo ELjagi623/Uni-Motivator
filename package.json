@@ -15,10 +15,12 @@
     "test": "vitest run && node --test --test-reporter=spec \"tests/server/*.test.js\" \"tests/scripts/*.test.js\"",
     "coverage": "vitest run --coverage",
     "acceptance": "node scripts/acceptance.mjs",
+    "release": "node scripts/release.mjs",
     "check:arch": "node scripts/check-arch.mjs",
     "inspect": "tsx scripts/inspect-calendar.ts",
     "check:tokens": "node scripts/check-tokens.mjs",
     "check:ui": "node scripts/check-ui.mjs",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "query": "tsx scripts/query-at.ts"
   },
   "dependencies": {

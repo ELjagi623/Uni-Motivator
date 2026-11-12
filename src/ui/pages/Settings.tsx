@@ -28,6 +28,7 @@ import {
 } from '../../state/reminders';
 import { clearSyncReport, lastSyncText, subscribe, syncErrorText, syncNow, syncRateText, syncReport, syncing } from '../../state/subscriptions';
 import {
+  adoptSplitDate,
   cancelSave,
   confirmSave,
   editDraft,
@@ -45,7 +46,7 @@ import type { SubscriptionInfo } from '../../api/client';
 import { Button, ChoiceGroup, Checkbox, TextInput } from '../components/controls';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { FileButton } from '../components/FileButton';
-import { AppearanceCard, BillingModeCard, ExchangeCard, YearsCard } from './SettingsExtras';
+import { AppearanceCard, BackupCard, BillingModeCard, ExchangeCard, YearsCard } from './SettingsExtras';
 import { SplitChecks } from '../components/SplitChecks';
 
 const FAILURE_KEYS: Record<ImportFailureReason, MessageKey> = {
@@ -181,7 +182,7 @@ function AcademicCard() {
       ) : (
         <p class="muted small">{t('settings.dateHelp')}</p>
       )}
-      <SplitChecks checks={view.splitChecks} id="settings-split-checks" />
+      <SplitChecks checks={view.splitChecks} id="settings-split-checks" onAdopt={(suggest) => void adoptSplitDate(suggest)} />
     </section>
   );
 }
@@ -450,6 +451,7 @@ export function Settings() {
         <ExchangeCard />
         <AppearanceCard />
         <RemindersCard />
+        <BackupCard />
         <TimeCard />
       </div>
       <div class="panel__footer settings-footer">

@@ -10,6 +10,10 @@ export interface Session {
   location: string;
   startMs: number;
   endMs: number;
+  /** Where the session came from; absent = a calendar. */
+  source?: 'calendar' | 'manual';
+  /** Manual sessions name their course directly (calendar sessions are matched to courses by title / code). */
+  courseId?: string;
 }
 
 /** A user-confirmed course. Re-importing a calendar re-attaches sessions through `match`. */
@@ -22,6 +26,8 @@ export interface Course {
   credits: number | null;
   color: string;
   match: { codes: string[]; titles: string[] };
+  /** True for a course the user created by hand (no calendar event matches it). */
+  manual?: boolean;
 }
 
 /** `MM-DD` strings; see academic.ts. */

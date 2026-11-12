@@ -5,6 +5,8 @@
 //   3. Request bodies are capped at 5 MB (413 beyond that)
 
 export const MAX_BODY_BYTES = 5 * 1024 * 1024;
+/** Backups carry every calendar, so POST /api/import accepts more than the usual 5 MB. */
+export const MAX_IMPORT_BYTES = 20 * 1024 * 1024;
 export const CSRF_HEADER = 'x-tuition-ticker';
 export const SAFE_METHODS = new Set(['GET', 'HEAD']);
 

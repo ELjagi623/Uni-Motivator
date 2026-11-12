@@ -21,8 +21,14 @@ import {
 } from '../../state/currency';
 import { cancelNewYear, confirmNewYear, newYear, newYearBusy, newYearPlan, newYearReport, newYearResult, setNewGroupCredits, setNewGroupName, setNewGroupSelected, setNewPoolTuition, startNewYear } from '../../state/newYear';
 import { rateChangeText, setBillingMode, setCreditText, settingsView } from '../../state/settings';
+import { INTENSITIES, copyIntensity, setIntensity } from '../../state/intensity';
+import { chooseLanguage, languageChoice } from '../../state/language';
+import { LOCALES, type Locale } from '../../i18n';
+import type { Intensity } from '../../core/types';
 import { setTheme, themeChoice } from '../../state/theme';
 import { yearViews } from '../../state/years';
+import { backupBusy, backupMessage, cancelImport, chooseBackupFile, confirmImport, exportBackup, importPending } from '../../state/backup';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Button, ChoiceGroup, TextInput } from '../components/controls';
 import { FileButton } from '../components/FileButton';
 import { CourseList } from './CourseRecognition';
@@ -49,6 +55,30 @@ export function AppearanceCard() {
         <ChoiceGroup<ThemeChoice> name="settings-theme" legend={t('settings.theme')} variant="seg" value={themeChoice.value} options={options} onChange={setTheme} />
       </div>
       <p class="muted small">{t('settings.themeNote')}</p>
+      <div class="row-between settings-row">
+        <span>{t('settings.language')}</span>
+        <ChoiceGroup<Locale>
+          name="settings-language"
+          legend={t('settings.language.legend')}
+          variant="chip"
+          value={languageChoice.value}
+          options={LOCALES.map((value) => ({ value, label: t(`lang.${value}` as const) }))}
+          onChange={chooseLanguage}
+        />
+      </div>
+      <p class="muted small">{t('settings.languageNote')}</p>
+      <div class="row-between settings-row">
+        <span>{t('settings.intensity')}</span>
+        <ChoiceGroup<Intensity>
+          name="settings-intensity"
+          legend={t('settings.intensity.legend')}
+          variant="seg"
+          value={copyIntensity.value}
+          options={INTENSITIES.map((value) => ({ value, label: t(`intensity.${value}` as const) }))}
+          onChange={setIntensity}
+        />
+      </div>
+      <p class="muted small">{t('settings.intensityNote')}</p>
     </section>
   );
 }
@@ -163,7 +193,7 @@ export function ExchangeCard() {
             </span>
           </div>
           <p id="exchange-rate-note" class={invalid ? 'field-error' : 'muted small'} role={invalid ? 'alert' : undefined}>
-            {invalid ? t('settings.second.invalid') : getCurrency(second).name}
+            {invalid ? t('settings.second.invalid') : t(`currency.name.${second}` as const)}
           </p>
           {hasRateOverrides.value ? (
             <p class="muted small" id="rates-custom">
@@ -339,6 +369,49 @@ export function YearsCard() {
       ) : null}
       <NewYearPanel />
       <p class="muted small">{t('years.note')}</p>
+    </section>
+  );
+}
+
+// ------------------------------------------------------------------ backup
+
+export function BackupCard() {
+  const msg = backupMessage.value;
+  const pending = importPending.value;
+  const busy = backupBusy.value;
+  return (
+    <section class="card settings-card" id="card-backup" aria-labelledby="backup-title">
+      <span class="label" id="backup-title">
+        {t('backup.title')}
+      </span>
+      <p class="muted small">{t('backup.note')}</p>
+      <div class="row settings-row backup-buttons">
+        <Button variant="ghost" id="backup-export" disabled={busy} onClick={() => void exportBackup()}>
+          {t('backup.export')}
+        </Button>
+        <FileButton id="backup-import-input" label={t('backup.import')} ariaLabel={t('backup.importAria')} accept=".json,application/json" onFiles={(files) => void chooseBackupFile(files[0])} />
+      </div>
+      <p class="muted small">{t('backup.subsNote')}</p>
+      <div role="status" aria-live="polite" id="backup-status">
+        {msg ? (
+          <p class={msg.kind === 'error' ? 'field-error' : 'muted small'} data-kind={msg.kind}>
+            {msg.text}
+          </p>
+        ) : null}
+      </div>
+      {pending ? (
+        <ConfirmDialog
+          id="backup-dialog"
+          caption={t('backup.confirm.title')}
+          heading={t('backup.confirm.heading')}
+          confirmLabel={t('backup.confirm.ok')}
+          cancelLabel={t('backup.confirm.cancel')}
+          onConfirm={() => void confirmImport()}
+          onCancel={cancelImport}
+        >
+          <span class="muted small">{t('backup.confirm.note', { calendars: pending.calendars })}</span>
+        </ConfirmDialog>
+      ) : null}
     </section>
   );
 }

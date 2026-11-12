@@ -76,8 +76,9 @@ export interface Canvas2D {
 function equivalentLine(amountMinor: number, currency: DashboardInputs['currency'], key: 'share.equivalentSlack' | 'share.equivalentSpent'): string {
   const e = equivalentOf(amountMinor, currency);
   if (!e) return '';
+  const item = e.count >= 1 ? e : { ...e, ...e.many };
   const amount = e.count >= 1 ? String(e.count) : e.fractionText;
-  return `${e.emoji} ${t(key, { text: `${amount} ${e.unit}${e.name}` })}`;
+  return `${e.emoji} ${t(key, { text: t('share.itemPhrase', { amount, unit: item.unit, name: item.name }) })}`;
 }
 
 /** The card's content at `nowMs`: this class, this week, this semester; slacking, attendance and an equivalent. */

@@ -6,10 +6,12 @@ export interface FileButtonProps {
   label: string;
   ariaLabel?: string;
   multiple?: boolean;
+  /** The accept attribute (default: calendar files). */
+  accept?: string;
   onFiles: (files: FileList) => void;
 }
 
-export function FileButton({ id, label, ariaLabel, multiple, onFiles }: FileButtonProps) {
+export function FileButton({ id, label, ariaLabel, multiple, accept, onFiles }: FileButtonProps) {
   return (
     <label class="btn btn--ghost btn--small">
       <input
@@ -18,7 +20,7 @@ export function FileButton({ id, label, ariaLabel, multiple, onFiles }: FileButt
         type="file"
         multiple={multiple}
         aria-label={ariaLabel ?? label}
-        accept=".zip,.ics,application/zip,text/calendar"
+        accept={accept ?? '.zip,.ics,application/zip,text/calendar'}
         onChange={(e) => {
           const input = e.currentTarget as HTMLInputElement;
           if (input.files && input.files.length > 0) onFiles(input.files);

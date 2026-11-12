@@ -14,7 +14,8 @@ import type { Course, Session } from '../core/types';
 import { addCalendars, removeCalendarFromSettings, type ImportItem, type ImportReport } from './calendars';
 import { DEFAULT_CURRENCY, type AppConfig } from './config';
 import { calendars, config, flushSaves, setConfig } from './data';
-import { allSessions, billableOf, billingConfigOf, pools as savedPools, sessionsOfFiles } from './derived';
+import { mergeSessions } from '../core/ics/expand';
+import { allSessions, billableOf, billingConfigOf, manualSessions, pools as savedPools, sessionsOfFiles } from './derived';
 import { parseCreditsText } from './credits';
 import {
   buildDraftConfig,
@@ -153,7 +154,7 @@ export const newYearPlan = computed<NewYearPlan | null>(() => {
   const flow = newYear.value;
   if (!flow) return null;
   const added = new Set(flow.addedIds);
-  const oldSessions = sessionsOfFiles(calendars.value.filter((c) => !added.has(c.id)));
+  const oldSessions = mergeSessions([sessionsOfFiles(calendars.value.filter((c) => !added.has(c.id))), manualSessions.value]);
   return planNewYear(flow, config.value, oldSessions, allSessions.value);
 });
 

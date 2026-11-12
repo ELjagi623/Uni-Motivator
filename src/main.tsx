@@ -10,6 +10,7 @@ import { clock } from './state/clock';
 import { installLeaveFlush, loadAll } from './state/data';
 import { startRouter } from './state/router';
 import { installPrivacyShortcut } from './state/privacy';
+import { installLanguage } from './state/language';
 import { installTheme } from './state/theme';
 import { installDebug } from './state/debug';
 import { startReminders } from './state/reminders';
@@ -18,6 +19,7 @@ import { startTitleUpdates } from './state/title';
 import { App } from './ui/App';
 
 startRouter();
+installLanguage(); // the saved language once the config is loaded (a localStorage mirror covers the first render)
 installTheme(); // the saved theme (data-theme) once the config is loaded; index.html sets it from the mirror before the first paint
 installPrivacyShortcut(); // key B: blur every amount
 installLeaveFlush(); // pending edits are sent when the page is hidden or closed, not 0.5 s later

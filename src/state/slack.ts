@@ -9,7 +9,8 @@ import { effect, signal } from '@preact/signals';
 import { findPoolOfSession, getPoolSession } from '../core/billing';
 import { pickEquivalent } from '../core/equivalents';
 import { formatMinor, type CurrencyCode } from '../core/money';
-import { t } from '../i18n';
+import { localizeItem } from '../data/price-pack-hk';
+import { getLocale, t } from '../i18n';
 import { closeFinishedSlacks, slackAmountMinor, slackSeconds, slackSecondsBySession, isSlackRunning } from '../core/slack';
 import type { Session, SlackRecord } from '../core/types';
 import { demoActive, demoSlacks } from './demoState';
@@ -81,8 +82,12 @@ export function closeSettlement(): void {
 
 export interface EquivalentView {
   emoji: string;
+  /** Name and counter word for `count` (English: singular for exactly 1, plural otherwise). */
   name: string;
   unit: string;
+  /** The same item for the quantity 1 ("1 box of ...") and for a fraction or several ("5.9 boxes of ..."). */
+  one: { name: string; unit: string };
+  many: { name: string; unit: string };
   /** Whole items the amount buys (0 below the cheapest item). */
   count: number;
   /** amount / price with one decimal, e.g. "5.9". */
@@ -93,7 +98,9 @@ export interface EquivalentView {
 export function equivalentOf(amountMinor: number, cur: CurrencyCode): EquivalentView | null {
   const e = pickEquivalent(amountMinor, cur);
   if (!e) return null;
-  return { emoji: e.item.emoji, name: e.item.name, unit: e.item.unit, count: e.count, fractionText: e.fraction.toFixed(1), belowCheapest: e.belowCheapest };
+  const locale = getLocale();
+  const text = localizeItem(e.item, locale, e.count);
+  return { emoji: e.item.emoji, name: text.name, unit: text.unit, one: localizeItem(e.item, locale, 1), many: localizeItem(e.item, locale, 0), count: e.count, fractionText: e.fraction.toFixed(1), belowCheapest: e.belowCheapest };
 }
 
 export interface SlackContext {
@@ -191,7 +198,21 @@ export function equivalentHint(amountMinor: number, cur: CurrencyCode): string {
   if (!e) return '';
   return e.count >= 1
     ? `${e.emoji} ${t('slack.equivalentNow', { count: e.count, unit: e.unit, name: e.name })}`
-    : `${e.emoji} ${t('slack.equivalentAlmost', { unit: e.unit, name: e.name })}`;
+    : `${e.emoji} ${t('slack.equivalentAlmost', { unit: e.one.unit, name: e.one.name })}`;
+}
+
+/** Values for the slacking-page copy lines ({minutes} {amount} {count} {unit} {item} {course}); a line whose value is missing is skipped. */
+export function slackCopyVars(ctx: SlackContext, nowMs: number): Record<string, string | number | undefined> {
+  const live = slackLiveAt(ctx, nowMs);
+  const e = equivalentOf(live.amountMinor, ctx.currency);
+  return {
+    minutes: Math.floor(live.seconds / 60),
+    amount: formatMinor(live.amountMinor, ctx.currency),
+    count: e && e.count >= 1 ? e.count : undefined,
+    unit: e?.unit,
+    item: e?.name,
+    course: ctx.label,
+  };
 }
 
 const pad2 = (n: number): string => String(n).padStart(2, '0');
@@ -215,7 +236,7 @@ export function settlementTexts(ctx: SlackContext, nowMs: number): SettlementTex
   return {
     amountMinor: s.amountMinor,
     durationLabel: minSecText(s.seconds),
-    equivalentLabel: s.amountMinor > 0 && s.equivalent ? `${s.equivalent.fractionText} ${s.equivalent.unit}${s.equivalent.name}` : '',
+    equivalentLabel: s.amountMinor > 0 && s.equivalent ? `${s.equivalent.fractionText} ${s.equivalent.many.unit}${s.equivalent.many.name}` : '',
     sessionTotalMinutes: Math.floor(s.sessionTotalSeconds / 60),
   };
 }

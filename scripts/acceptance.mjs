@@ -15,9 +15,11 @@ import { checks as p3b } from './acceptance/p3b.mjs';
 import { checks as p3c } from './acceptance/p3c.mjs';
 import { checks as p4a } from './acceptance/p4a.mjs';
 import { checks as p4b } from './acceptance/p4b.mjs';
+import { checks as p4c } from './acceptance/p4c.mjs';
+import { checks as p5 } from './acceptance/p5.mjs';
 import { cleanupAll } from './acceptance/lib.mjs';
 
-const all = [...p0, ...p1, ...p2, ...p3a, ...p3b, ...p3c, ...p4a, ...p4b];
+const all = [...p0, ...p1, ...p2, ...p3a, ...p3b, ...p3c, ...p4a, ...p4b, ...p4c, ...p5];
 
 function parseOnly(argv) {
   const i = argv.indexOf('--only');

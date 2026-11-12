@@ -464,6 +464,11 @@ export function inClassCopyVars(model: DashboardModel, view: SessionView, nowMs:
   return { course: view.label, amount: formatMinor(live.sessionConsumedMinor, model.currency), rate: view.rateText, minutes: Math.floor(live.elapsedSec / 60) };
 }
 
+/** Values for the break-scene copy lines ({minutes} until the next class, {course} the next class). */
+export function breakCopyVars(model: DashboardModel, nextId: string, label: string, nowMs: number): Record<string, string | number> {
+  return { minutes: Math.ceil(liveAt(model, nextId, nowMs).countdownSec / 60), course: label };
+}
+
 /**
  * One sentence describing the situation for screen readers. The page shows it in an `aria-live="polite"` region that
  * is refreshed at most once a minute (see `minuteBucket`).

@@ -106,6 +106,25 @@ export function installFakeServer(initial: Partial<Record<'config' | 'marks' | '
       subscriptions.push({ calendarId, url: link, addedMs: syncClock, lastSyncMs: syncClock, lastError: null });
       return respond(201, { calendarId, lastSyncMs: syncClock, changed: true });
     }
+    if (method === 'GET' && url === '/api/export') {
+      const strip = (d: Doc) => {
+        const { rev: _rev, ...rest } = d;
+        return rest;
+      };
+      return new Response(JSON.stringify({ app: 'tuition-ticker', kind: 'backup', schemaVersion: 1, exportedAt: 'x', config: strip(docs.config), marks: strip(docs.marks), slacks: strip(docs.slacks), calendars: [...cals].map(([id, text]) => ({ id, text })) }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="tuition-ticker-backup-2026-11-12.json"' },
+      });
+    }
+    if (method === 'POST' && url === '/api/import') {
+      const b = json as { app?: string; kind?: string; schemaVersion?: number; config?: Doc; marks?: Doc; slacks?: Doc; calendars?: Array<{ id: string; text: string }> };
+      if (b?.app !== 'tuition-ticker' || b.kind !== 'backup' || !b.config || !b.marks || !b.slacks || !Array.isArray(b.calendars)) return respond(400, { error: 'bad_backup', message: 'bad backup' });
+      if (b.schemaVersion !== 1) return respond(400, { error: 'unsupported_version', message: 'version' });
+      for (const name of ['config', 'marks', 'slacks'] as const) docs[name] = { ...(b[name] as Doc), schemaVersion: 1, rev: docs[name].rev + 1 };
+      cals.clear();
+      for (const c of b.calendars) cals.set(c.id, c.text);
+      return respond(200, { ok: true, backup: 'x_before-import.json', calendars: b.calendars.length });
+    }
     const syncMatch = url.match(/^\/api\/calendars\/([^/]+)\/sync$/);
     if (method === 'POST' && syncMatch) {
       const sub = subscriptions.find((x) => x.calendarId === decodeURIComponent(syncMatch[1]));

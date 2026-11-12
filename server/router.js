@@ -13,10 +13,15 @@
 //                                   download failed (the stored calendar is untouched)
 //   GET /api/data also lists `subscriptions`: [{calendarId, addedMs, lastSyncMs, lastError}] - never the links.
 //
-// Export / import endpoints belong to a later phase.
+//   GET  /api/export          -> the whole data as one JSON file: { app, kind: "backup", schemaVersion, exportedAt, config, marks,
+//                                slacks, calendars: [{id, text}] } (no rev numbers, no subscription links), sent as a download
+//   POST /api/import          -> body: such a file. Validated first (structure, schemaVersion); 400 and nothing changed when it is
+//                                not valid. Otherwise the current data is copied to data/backups/<stamp>_before-import.json and
+//                                then replaced. 200 { ok, backup, calendars }. The body limit is 20 MB here (5 MB elsewhere):
+//                                a backup carries every calendar, so it can be larger than any single request.
 
 import { StoreError, isCalendarId, isDocName } from './store.js';
-import { HttpError, assertRequestAllowed, readBody } from './security.js';
+import { HttpError, MAX_IMPORT_BYTES, assertRequestAllowed, readBody } from './security.js';
 import { serveStatic } from './static.js';
 import { SyncError } from './calendar-sync.js';
 
@@ -74,6 +79,23 @@ export function createHandler({ store, getPort, appDir, version, sync }) {
     if (decoded.length === 1 && decoded[0] === 'data') {
       if (method !== 'GET' && method !== 'HEAD') throw new HttpError(405, 'method_not_allowed');
       sendJson(res, 200, store.readAll());
+      return;
+    }
+
+    if (decoded.length === 1 && decoded[0] === 'export') {
+      if (method !== 'GET') throw new HttpError(405, 'method_not_allowed');
+      const day = new Date(Date.now()).toISOString().slice(0, 10);
+      sendJson(res, 200, store.exportBackup(), { 'Content-Disposition': `attachment; filename="tuition-ticker-backup-${day}.json"` });
+      return;
+    }
+
+    if (decoded.length === 1 && decoded[0] === `import`) {
+      if (method !== 'POST') throw new HttpError(405, 'method_not_allowed');
+      const payload = parseJsonBody(await readBody(req, MAX_IMPORT_BYTES));
+      const checked = store.validateBackup(payload);
+      if (!checked.ok) throw new HttpError(400, checked.code, checked.message);
+      const result = store.importBackup(payload);
+      sendJson(res, 200, { ok: true, ...result });
       return;
     }
 

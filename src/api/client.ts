@@ -142,3 +142,42 @@ export async function deleteCalendar(id: string): Promise<void> {
   const res = await fetch(`/api/calendars/${encodeURIComponent(id)}`, { method: 'DELETE', headers: WRITE_HEADERS });
   if (!res.ok && res.status !== 404) throw await failure(res);
 }
+
+// ------------------------------------------------------------------ backup
+
+/** A refused backup import: `code` is the server's error code (bad_backup, unsupported_version, ...). */
+export class ImportApiError extends ApiError {
+  readonly code: string;
+  constructor(status: number, code: string, message: string) {
+    super(status, message);
+    this.name = 'ImportApiError';
+    this.code = code;
+  }
+}
+
+/** The whole data as one JSON text, with the file name the server suggests. */
+export async function fetchBackup(): Promise<{ text: string; fileName: string }> {
+  const res = await fetch('/api/export');
+  if (!res.ok) throw await failure(res);
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = /filename="([^"]+)"/.exec(disposition);
+  return { text: await res.text(), fileName: match ? match[1] : 'tuition-ticker-backup.json' };
+}
+
+/** Send a backup file's text; the server validates it, saves the current data and replaces everything. */
+export async function postImport(text: string): Promise<{ backup: string; calendars: number }> {
+  const res = await fetch('/api/import', { method: 'POST', headers: { 'Content-Type': 'application/json', ...WRITE_HEADERS }, body: text });
+  if (!res.ok) {
+    let code = 'import_failed';
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = (await res.json()) as { error?: string; message?: string };
+      if (typeof body.error === 'string') code = body.error;
+      if (typeof body.message === 'string') message = body.message;
+    } catch {
+      /* not JSON */
+    }
+    throw new ImportApiError(res.status, code, message);
+  }
+  return (await res.json()) as { backup: string; calendars: number };
+}

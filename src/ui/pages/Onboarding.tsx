@@ -85,7 +85,7 @@ function StepRegion() {
           legend={t('onboarding.step1.regionLabel')}
           variant="chip"
           value={d.region}
-          options={REGION_PRESETS.map((r) => ({ value: r.id, label: r.name }))}
+          options={REGION_PRESETS.map((r) => ({ value: r.id, label: t(`region.${r.id}` as const) }))}
           onChange={chooseRegion}
         />
         <p class="muted small option-note">{t('onboarding.step1.regionNote')}</p>
@@ -347,7 +347,7 @@ function StepPreview() {
       {p.splitChecks.length > 0 ? (
         <div class="field-group">
           <span class="label">{t('onboarding.step7.splitTitle')}</span>
-          <SplitChecks checks={p.splitChecks} id="split-checks" />
+          <SplitChecks checks={p.splitChecks} id="split-checks" onAdopt={(suggest) => updateDraft({ splitDate: suggest })} />
         </div>
       ) : null}
     </div>

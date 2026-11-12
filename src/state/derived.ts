@@ -6,10 +6,11 @@ import { computed } from '@preact/signals';
 import { assignCourses } from '../core/courses';
 import { buildPools, type BillableSession, type BillingConfig, type Pool } from '../core/billing';
 import { expandIcs, mergeSessions } from '../core/ics/expand';
+import { expandManual, manualFromDoc, type ManualDoc } from '../core/manual';
 import { isCurrencyCode, type CurrencyCode } from '../core/money';
 import type { Course, Session } from '../core/types';
 import type { CalendarFile } from '../api/client';
-import { activeCalendars, activeConfig } from './source';
+import { activeCalendars, activeConfig, activeMarks } from './source';
 import { DEFAULT_CURRENCY, defaultAcademic, type AppConfig } from './config';
 
 export interface ParsedCalendarFile {
@@ -72,7 +73,16 @@ export function billingConfigOf(cfg: AppConfig): BillingConfig {
   };
 }
 
-export const allSessions = computed<Session[]>(() => sessionsOfFiles(activeCalendars.value));
+/** The manual classes (a course typed in by hand, make-up classes): definitions in the marks document, sessions derived. */
+// The raw `manual` part is its own computed: editing a mark leaves it untouched, so nothing downstream is rebuilt.
+const manualRaw = computed(() => activeMarks.value.manual);
+export const manualDoc = computed<ManualDoc>(() => manualFromDoc(manualRaw.value));
+export const manualSessions = computed<Session[]>(() => expandManual(manualDoc.value));
+export const allSessions = computed<Session[]>(() => {
+  const manual = manualSessions.value;
+  const calendarSessions = sessionsOfFiles(activeCalendars.value);
+  return manual.length === 0 ? calendarSessions : mergeSessions([calendarSessions, manual]);
+});
 export const courses = computed<Course[]>(() => activeConfig.value.courses ?? []);
 export const billableSessions = computed(() => billableOf(allSessions.value, courses.value));
 export const pools = computed<Pool[]>(() => (billableSessions.value.length ? buildPools(billableSessions.value, billingConfigOf(activeConfig.value)) : []));

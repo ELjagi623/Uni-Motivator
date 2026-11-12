@@ -16,7 +16,8 @@ import { sessionOrdinal, type Ordinal } from '../core/ordinal';
 import { slackAmountMinor, slackSeconds } from '../core/slack';
 import type { MarkStatus } from '../core/types';
 import { academicYearsOf, isSessionArchived, type YearRole } from '../core/years';
-import { t } from '../i18n';
+import { localizeItem } from '../data/price-pack-hk';
+import { getLocale, t } from '../i18n';
 import { clockText, minutesOf, rateText, weekdayText, type DashboardInputs } from './dashboard';
 
 export type SessionPhase = 'past' | 'ongoing' | 'upcoming';
@@ -50,6 +51,15 @@ export interface SessionRow {
   slackAmountMinor: number;
   /** Slack minutes and amount as text, or null when there was no slacking. */
   slackText: string | null;
+  /** Length of the class in whole minutes (the bound for the late / early minutes). */
+  durationMin: number;
+  /** Minutes arrived late / left early (0 = none) and what they cost (minutes x unit price). */
+  lateMin: number;
+  earlyMin: number;
+  lateLossText: string;
+  earlyLossText: string;
+  /** True for a class the user added by hand (it can be removed from the detail panel). */
+  isManual: boolean;
   /** True for a class of an archived academic year: the marks cannot be changed any more. */
   readOnly: boolean;
   /** The skip calculator sentence ("翘掉这节 = 扔掉 HK$3,980 ≈ 88 盒三餸饭"); null for cancelled classes. */
@@ -79,6 +89,10 @@ export interface MarksSummaryView {
   cancelledText: string;
   skippedText: string;
   attendanceText: string;
+  /** Money lost by arriving late / leaving early (minutes x unit price). */
+  lateEarlyMinor: number;
+  lateEarlyText: string;
+  lateEarlyMinutes: number;
 }
 
 export interface SessionsModel {
@@ -96,6 +110,12 @@ export interface SessionsModel {
   canNext: boolean;
   rows: SessionRow[];
   summary: MarksSummaryView;
+  /**
+   * What the three summary cards cover: the academic year of the shown week when the timetable spans several years,
+   * otherwise null (everything). `summaryScopeText` is the sentence for the page ("汇总范围：2026 学年").
+   */
+  summaryYear: number | null;
+  summaryScopeText: string | null;
   currency: CurrencyCode;
   years: SessionsYearChip[];
 }
@@ -191,6 +211,12 @@ function rowOf(inputs: DashboardInputs, session: DashboardInputs['sessions'][num
     slackSeconds: slackSec,
     slackAmountMinor: slackMinor,
     slackText,
+    durationMin: Math.floor((session.endMs - session.startMs) / 60_000),
+    lateMin: inputs.marks[session.id]?.lateMin ?? 0,
+    earlyMin: inputs.marks[session.id]?.earlyMin ?? 0,
+    lateLossText: formatMinor(Math.round((inputs.marks[session.id]?.lateMin ?? 0) * 60 * (ps?.ratePerSec ?? 0)), inputs.currency),
+    earlyLossText: formatMinor(Math.round((inputs.marks[session.id]?.earlyMin ?? 0) * 60 * (ps?.ratePerSec ?? 0)), inputs.currency),
+    isManual: (session as { source?: string }).source === 'manual',
     readOnly: inputs.academic ? isSessionArchived(session.startMs, nowMs, inputs.academic) : false,
     skipText: inputs.marks[session.id]?.status === 'cancelled' ? null : skipTextOf(costMinor, inputs.currency),
   };
@@ -201,9 +227,10 @@ export function skipTextOf(costMinor: number, currency: CurrencyCode): string | 
   const calc = skipCalculation(costMinor, currency);
   if (!calc || costMinor <= 0) return null;
   const amount = formatMinor(costMinor, currency);
+  const item = localizeItem(calc.item, getLocale(), calc.count >= 1 ? calc.count : 1);
   return calc.count >= 1
-    ? t('sessions.calc.text', { amount, count: calc.count, unit: calc.item.unit, name: calc.item.name })
-    : t('sessions.calc.less', { amount, unit: calc.item.unit, name: calc.item.name });
+    ? t('sessions.calc.text', { amount, count: calc.count, unit: item.unit, name: item.name })
+    : t('sessions.calc.less', { amount, unit: item.unit, name: item.name });
 }
 
 /** One session as a row (for the detail panel), or null when the id is unknown. */
@@ -226,12 +253,16 @@ export function summaryViewOf(summary: MarkSummary, currency: CurrencyCode): Mar
     cancelledText: formatMinor(summary.cancelledMinor, currency),
     skippedText: formatMinor(summary.skippedMinor, currency),
     attendanceText: attendanceText(summary.attendanceRate),
+    lateEarlyMinor: summary.lateMinor + summary.earlyMinor,
+    lateEarlyText: formatMinor(summary.lateMinor + summary.earlyMinor, currency),
+    lateEarlyMinutes: summary.lateMinutes + summary.earlyMinutes,
   };
 }
 
 /** The three figures at the top of the page, over every tuition pool, for sessions that have ended by `nowMs`. */
-export function marksSummaryAt(inputs: DashboardInputs, nowMs: number): MarksSummaryView {
-  return summaryViewOf(summarizeMarks(inputs.pools, inputs.marks, { asOfMs: nowMs }).total, inputs.currency);
+export function marksSummaryAt(inputs: DashboardInputs, nowMs: number, year: number | null = null): MarksSummaryView {
+  const pools = year === null ? inputs.pools : inputs.pools.filter((p) => p.year === year);
+  return summaryViewOf(summarizeMarks(pools, inputs.marks, { asOfMs: nowMs }).total, inputs.currency);
 }
 
 // ------------------------------------------------------------------ the model
@@ -256,6 +287,8 @@ export function buildSessionsModel(inputs: DashboardInputs, nowMs: number, reque
       canNext: false,
       rows: [],
       summary,
+      summaryYear: null,
+      summaryScopeText: null,
       currency: inputs.currency,
       years: [],
     };
@@ -277,6 +310,11 @@ export function buildSessionsModel(inputs: DashboardInputs, nowMs: number, reque
     .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs)
     .map((s) => rowOf(inputs, s, nowMs));
   const weekNumber = isoWeekNumber(weekStartMs);
+  const years = yearChipsOf(inputs, nowMs, weekStartMs);
+  // With several academic years the cards follow the year of the shown week (the year buttons above them), so that
+  // "2027" never shows 2026's numbers; with one year they cover everything.
+  const shown = years.find((y) => y.active);
+  const summaryYear = shown ? shown.year : null;
   return {
     hasSessions: true,
     builtAtMs: nowMs,
@@ -288,9 +326,11 @@ export function buildSessionsModel(inputs: DashboardInputs, nowMs: number, reque
     canPrev: weekStartMs > firstWeek,
     canNext: weekStartMs < lastWeek,
     rows,
-    summary,
+    summary: summaryYear === null ? summary : marksSummaryAt(inputs, nowMs, summaryYear),
+    summaryYear,
+    summaryScopeText: shown ? t('sessions.summaryScope', { scope: shown.label }) : null,
     currency: inputs.currency,
-    years: yearChipsOf(inputs, nowMs, weekStartMs),
+    years,
   };
 }
 

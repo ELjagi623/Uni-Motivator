@@ -5,6 +5,7 @@
 import { formatAmountMinor, formatMinor, getCurrency, type CurrencyCode } from '../../core/money';
 import { t, type MessageKey } from '../../i18n';
 import {
+  breakCopyVars,
   durationText,
   inClassCopyVars,
   liveAt,
@@ -152,6 +153,7 @@ function Break({ model }: { model: DashboardModel }) {
             </span>
           </div>
         ) : null}
+        <CopyCarousel class="break-copy muted" scene="break" getVars={() => breakCopyVars(model, next.id, next.label, activeNow.peek())} />
         <Timeline model={model} />
       </div>
       <TuitionTank model={model} currency={model.currency} sessionId={next.id} />

@@ -2,12 +2,14 @@
 // (翘课) or cancelled by the school (停课). The page only displays what state/core produced; the figures and the
 // marks are written by src/state. Status is never shown by colour alone: every tag carries a glyph and a word.
 
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { t, type MessageKey } from '../../i18n';
-import { setMark } from '../../state/marks';
+import { removeOccurrence, cancelManual } from '../../state/manual';
+import { setLateEarly, setMark, type LateKind } from '../../state/marks';
 import { type SessionRow } from '../../state/sessions';
 import { goNextWeek, goPrevWeek, goThisWeek, goToYear, selectRow, selectedRow, selectedRowId, sessionsModel } from '../../state/sessionsState';
-import { Button } from '../components/controls';
+import { Button, TextInput } from '../components/controls';
+import { ManualPanel } from './ManualPanel';
 
 const PHASE_KEYS: Record<SessionRow['phase'], MessageKey> = {
   past: 'sessions.tag.past',
@@ -26,6 +28,52 @@ function StatusTag({ row }: { row: SessionRow }) {
   );
 }
 
+/** Minutes arrived late / left early for one class, with the money they cost. Refused values show the reason and are not saved. */
+function LateEarly({ row }: { row: SessionRow }) {
+  const [text, setText] = useState<Record<LateKind, string>>({ late: row.lateMin > 0 ? String(row.lateMin) : '', early: row.earlyMin > 0 ? String(row.earlyMin) : '' });
+  const [bad, setBad] = useState<Record<LateKind, boolean>>({ late: false, early: false });
+  if (row.mark !== null) {
+    return (
+      <p class="muted small" id="late-none">
+        {t('late.notAttended')}
+      </p>
+    );
+  }
+  const change = (kind: LateKind, value: string) => {
+    setText((cur) => ({ ...cur, [kind]: value }));
+    const result = setLateEarly(row.id, kind, value);
+    setBad((cur) => ({ ...cur, [kind]: result === 'invalid' }));
+  };
+  const fields: Array<{ kind: LateKind; label: string; aria: string; loss: string; minutes: number }> = [
+    { kind: 'late', label: t('late.late'), aria: t('late.lateAria'), loss: row.lateLossText, minutes: row.lateMin },
+    { kind: 'early', label: t('late.early'), aria: t('late.earlyAria'), loss: row.earlyLossText, minutes: row.earlyMin },
+  ];
+  return (
+    <div class="late-early" id="late-early-box">
+      <span class="label">{t('late.title')}</span>
+      {fields.map((f) => (
+        <div key={f.kind} class="late-early__row">
+          <label class="muted" for={`late-${f.kind}`}>
+            {f.label}
+          </label>
+          <TextInput id={`late-${f.kind}`} className="num late-input" value={text[f.kind]} inputMode="numeric" maxLength={4} placeholder="0" invalid={bad[f.kind]} label={f.aria} describedBy={bad[f.kind] ? 'late-error' : undefined} onInput={(v) => change(f.kind, v)} />
+          {f.minutes > 0 ? (
+            <span class="muted small money" data-field={`${f.kind}-loss`}>
+              {t('late.loss', { amount: f.loss })}
+            </span>
+          ) : null}
+        </div>
+      ))}
+      {bad.late || bad.early ? (
+        <p class="field-error" role="alert" id="late-error">
+          {t('late.invalid', { max: row.durationMin })}
+        </p>
+      ) : null}
+      <p class="muted small">{t('late.note')}</p>
+    </div>
+  );
+}
+
 function SummaryCards() {
   const s = sessionsModel.value.summary;
   return (
@@ -40,6 +88,12 @@ function SummaryCards() {
         <span class="label">{t('sessions.skippedLabel')}</span>
         <b class="num summary-figure summary-figure--loss money" data-field="skipped-amount">
           {s.skippedText}
+        </b>
+      </div>
+      <div class="card summary-card">
+        <span class="label">{t('sessions.lateEarlyLabel')}</span>
+        <b class="num summary-figure money" data-field="late-early-amount">
+          {s.lateEarlyText}
         </b>
       </div>
       <div class="card summary-card">
@@ -186,6 +240,15 @@ function Detail() {
           {cancelled ? t('sessions.unmarkCancel') : t('sessions.markCancel')}
         </Button>
       </div>
+      <LateEarly key={row.id} row={row} />
+      {row.isManual && !row.readOnly ? (
+        <div class="manual-remove">
+          <Button small variant="ghost" id="manual-remove-this" onClick={() => removeOccurrence(row.id, row.startMs)}>
+            {t('manual.removeThis')}
+          </Button>
+          <span class="muted small">{t('manual.removeThisNote')}</span>
+        </div>
+      ) : null}
       <p class="mark-state" id="mark-state" role="status">
         {t(stateKey)}
       </p>
@@ -232,6 +295,7 @@ function YearChips() {
 
 export function Sessions() {
   const model = sessionsModel.value;
+  const [adding, setAdding] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -251,6 +315,9 @@ export function Sessions() {
         )}
         {model.hasSessions ? (
           <div class="week-nav">
+            <Button variant="ghost" id="manual-open" pressed={adding} onClick={() => setAdding((on) => !on)}>
+              {t('manual.add')}
+            </Button>
             <Button variant="ghost" id="week-prev" disabled={!model.canPrev} onClick={goPrevWeek}>
               {t('sessions.prevWeek')}
             </Button>
@@ -265,11 +332,24 @@ export function Sessions() {
           </div>
         ) : null}
       </div>
+      {adding ? (
+        <div class="manual-wrap">
+          <ManualPanel
+            onClose={() => {
+              cancelManual();
+              setAdding(false);
+            }}
+          />
+        </div>
+      ) : null}
       {model.hasSessions ? (
         <>
           <YearChips />
           <SummaryCards />
-          <p class="muted small summary-note">{t('sessions.summaryNote')}</p>
+          <p class="muted small summary-note" data-field="summary-scope">
+            {sessionsModel.value.summaryScopeText ? `${sessionsModel.value.summaryScopeText} · ` : ''}
+            {t('sessions.summaryNote')}
+          </p>
           <div class="sessions-body">
             <SessionTable />
             <Detail />
@@ -280,6 +360,13 @@ export function Sessions() {
           {t('sessions.noSessions')}
         </p>
       )}
+      {!model.hasSessions && !adding ? (
+        <div class="manual-wrap">
+          <Button variant="ghost" id="manual-open-empty" onClick={() => setAdding(true)}>
+            {t('manual.add')}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

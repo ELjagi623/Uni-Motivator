@@ -399,6 +399,15 @@ export async function saveSettings(): Promise<SaveOutcome> {
   return 'saved';
 }
 
+/**
+ * "Adopt": the split date becomes the suggested one and the settings are saved (with the unit-price preview first when
+ * a price changes, like any other save).
+ */
+export async function adoptSplitDate(suggest: string): Promise<SaveOutcome> {
+  editDraft({ splitDate: suggest });
+  return saveSettings();
+}
+
 /** The user confirmed the dialog. */
 export async function confirmSave(): Promise<void> {
   const view = settingsView.peek();

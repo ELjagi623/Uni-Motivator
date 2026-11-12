@@ -1,7 +1,8 @@
 // Shape of the `config` document and the defaults used before onboarding is finished.
 
 import type { CurrencyCode, RateTable } from '../core/money';
-import type { AcademicConfig, BillingMode, Course, TuitionConfig } from '../core/types';
+import type { AcademicConfig, BillingMode, Course, Intensity, TuitionConfig } from '../core/types';
+import type { Locale } from '../i18n';
 import { getRegionPreset, type RegionPreset } from '../data/regions';
 
 export interface CalendarSource {
@@ -38,6 +39,10 @@ export interface AppConfig {
   courses?: Course[];
   calendars?: CalendarSource[];
   reminders?: ReminderConfig;
+  /** Interface language (default zh-CN). */
+  language?: Locale;
+  /** Tone of the copy lines: gentle / normal / extreme (default normal). */
+  intensity?: Intensity;
   /** Light / dark theme choice (default: follow the system). */
   theme?: ThemeChoice;
   /**
