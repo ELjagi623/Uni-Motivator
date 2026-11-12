@@ -100,15 +100,15 @@ async function p51() {
 
   // READMEs
   const spec = {
-    'README.md': { other: 'README.en.md', parts: ['三步上手', 'Google', '隐私', '常见问题', '右键', 'docs/screenshot.png', '备份', '不再自动同步', '未经母语者校对', '防火墙', '端口', 'Node.js', '系统时间'] },
-    'README.en.md': { other: 'README.md', parts: ['three steps', 'Google Calendar', 'Privacy', 'FAQ', 'right-click', 'docs/screenshot.png', 'Backup', 'no longer sync automatically', 'not been reviewed by native', 'firewall', 'port', 'Node.js', 'system clock'] },
+    'README.md': { other: 'README.zh-CN.md', parts: ['Quick start', 'Google Calendar', 'Privacy', 'FAQ', 'right-click', 'docs/images/dashboard.png', 'docs/images/slacking.png', 'Backup', 'not been reviewed by native', 'firewall', 'port', 'Node.js', 'system clock', 'Portable'] },
+    'README.zh-CN.md': { other: 'README.md', parts: ['快速开始', 'Google', '隐私', '常见问题', '右键', 'docs/images/dashboard.png', 'docs/images/slacking.png', '备份', '未经母语者校对', '防火墙', '端口', 'Node.js', '系统时间', '免安装版'] },
   };
-  const docFiles = ['README.md', 'README.en.md', 'CONTRIBUTING.md', 'docs/COMPAT.md'];
+  const docFiles = ['README.md', 'README.zh-CN.md', 'CONTRIBUTING.md', 'docs/COMPAT.md'];
   for (const [file, { other, parts }] of Object.entries(spec)) {
     const text = read(file);
     for (const part of parts) if (!text.toLowerCase().includes(part.toLowerCase())) problems.push(`${file} lacks "${part}"`);
     if (!new RegExp(`\\]\\(${other.replace('.', '\\.')}\\)`).test(text)) problems.push(`${file} does not link to ${other}`);
-    if (!/!\[[^\]]*\]\(docs\/screenshot\.png\)/.test(text)) problems.push(`${file} has no screenshot image`);
+    if (!/!\[[^\]]*\]\(docs\/images\/dashboard\.png\)/.test(text) || !/!\[[^\]]*\]\(docs\/images\/slacking\.png\)/.test(text)) problems.push(`${file} lacks a screenshot image`);
   }
   for (const file of docFiles) {
     for (const m of read(file).matchAll(LINK)) {
@@ -118,7 +118,9 @@ async function p51() {
       if (clean && !exists(path.join(path.dirname(file), clean).split(path.sep).join('/'))) problems.push(`${file}: broken relative link ${target}`);
     }
   }
-  if (!fs.readFileSync(path.join(root, 'docs', 'screenshot.png')).subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) problems.push('docs/screenshot.png is not a PNG');
+  for (const shot of ['dashboard.png', 'slacking.png']) {
+    if (!fs.readFileSync(path.join(root, 'docs', 'images', shot)).subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) problems.push(`docs/images/${shot} is not a PNG`);
+  }
 
   // CONTRIBUTING covers school presets, price packs, translations, copy lines
   const contrib = read('CONTRIBUTING.md');
@@ -134,7 +136,7 @@ async function p51() {
     sampleNote = `sample calendar: ${info.sessions} classes, ${info.suggestedCourses} suggested courses`;
   }
   if (!/examples\/sample-calendar\.ics/.test(read('src/state/demo.ts'))) problems.push('the demo mode does not use examples/sample-calendar.ics');
-  if (!/sample-calendar\.ics/.test(read('README.md')) && !/demo/i.test(read('README.en.md'))) problems.push('README does not mention the demo');
+  if (!/demo/i.test(read('README.md'))) problems.push('README does not mention the demo');
 
   // no personal data, no real calendar content
   const titles = privateTitles();
@@ -147,12 +149,12 @@ async function p51() {
   }
   if (leaked) problems.push(`${leaked} event title(s) of the private calendar appear in docs / sample / scripts`);
   if (problems.length) return fail(problems.slice(0, 5).join('; '));
-  return ok(`start.command: LF, #!/bin/bash, ${bashNote}, Node >= 22 check, cd to own folder, builds only when app/index.html is missing, runs node server/index.js, uses \`open\`; start.cmd ASCII + CRLF; LICENSE is the full MIT text (Tuition Ticker contributors); README.md and README.en.md cover screenshot, three steps, Google export, privacy, FAQ, macOS first open, backup, subscription note, translation note, link each other, all relative links resolve; CONTRIBUTING.md covers presets / price packs / translations / copy; ${sampleNote}, used by the demo mode; no e-mail address and no private-calendar title in any doc${titles.size ? ' (private calendar present: checked in memory, nothing printed)' : ''}`);
+  return ok(`start.command: LF, #!/bin/bash, ${bashNote}, Node >= 22 check, cd to own folder, builds only when app/index.html is missing, runs node server/index.js, uses \`open\`; start.cmd ASCII + CRLF; LICENSE is the full MIT text (Tuition Ticker contributors); README.md and README.zh-CN.md cover screenshot, three steps, Google export, privacy, FAQ, macOS first open, backup, subscription note, translation note, link each other, all relative links resolve; CONTRIBUTING.md covers presets / price packs / translations / copy; ${sampleNote}, used by the demo mode; no e-mail address and no private-calendar title in any doc${titles.size ? ' (private calendar present: checked in memory, nothing printed)' : ''}`);
 }
 
 // ------------------------------------------------------------------ P5.2 (release zip)
 const FORBIDDEN = [/^data\//, /^test-data\//, /^\.pipeline\//, /^node_modules\//, /^src\//, /^tests\//, /^\.git/, /^release\//, /^coverage\//, /^docs\//, /^examples\//, /^scripts\//, /\.ics$/i, /\.map$/];
-const TOP_FILES = ['start.cmd', 'start.command', 'package.json', 'README.md', 'README.en.md', 'LICENSE'];
+const TOP_FILES = ['start.cmd', 'start.command', 'package.json', 'README.md', 'README.zh-CN.md', 'LICENSE'];
 
 const buildRelease = () =>
   memo('release', () => {
@@ -201,7 +203,7 @@ async function p52() {
   if (leaked) problems.push(`${leaked} private-calendar title(s) found inside the zip`);
   if (git('check-ignore', '-q', `release/${expectedName}`).status !== 0) problems.push('release/ is not ignored by git');
   if (problems.length) return fail(problems.slice(0, 5).join('; '));
-  return ok(`release/${expectedName}: ${names.length} entries, exactly the whitelist (start.cmd, start.command, package.json, README.md, README.en.md, LICENSE, server/ with all ${serverFiles.length} files, app/); none of data/ test-data/ .pipeline/ node_modules/ src/ tests/ .git or any .ics; start.command is mode ${cmd.mode.toString(8)} (Unix, executable) and nothing else is executable; start.cmd bytes identical (CRLF kept), start.command LF; release/ is git-ignored${titles.size ? '; private calendar present: none of its titles are in the zip' : ''}`);
+  return ok(`release/${expectedName}: ${names.length} entries, exactly the whitelist (start.cmd, start.command, package.json, README.md, README.zh-CN.md, LICENSE, server/ with all ${serverFiles.length} files, app/); none of data/ test-data/ .pipeline/ node_modules/ src/ tests/ .git or any .ics; start.command is mode ${cmd.mode.toString(8)} (Unix, executable) and nothing else is executable; start.cmd bytes identical (CRLF kept), start.command LF; release/ is git-ignored${titles.size ? '; private calendar present: none of its titles are in the zip' : ''}`);
 }
 
 // ------------------------------------------------------------------ P5.3 (fresh folder)

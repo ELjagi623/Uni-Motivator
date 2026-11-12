@@ -1,7 +1,7 @@
 # Contributing / 贡献指南
 
 Thanks for helping! 谢谢你愿意参与。This project is a small, local, dependency-light app, so most contributions are a
-data file or a dictionary away. Read [CLAUDE.md](CLAUDE.md) (architecture rules) and [README.en.md](README.en.md) first.
+data file or a dictionary away. Read [CLAUDE.md](CLAUDE.md) (architecture rules) and [README.md](README.md) first.
 
 ## Ground rules
 

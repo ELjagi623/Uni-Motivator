@@ -5,7 +5,7 @@
 //
 // The zip holds exactly this whitelist and nothing else, so an ordinary user can unzip it, install Node.js and
 // double-click start.cmd / start.command without ever running npm:
-//   start.cmd  start.command  server/  app/  package.json  README.md  README.en.md  LICENSE
+//   start.cmd  start.command  server/  app/  package.json  README.md  README.zh-CN.md  LICENSE
 // `start.command` carries the Unix mode 0755 (executable). Nothing is read from data/, test-data/, .pipeline/, src/ ...
 //
 //   node scripts/release.mjs [--skip-build]     --skip-build reuses an existing app/ (the acceptance script builds first)
@@ -20,7 +20,7 @@ import { zipSync } from 'fflate';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-export const WHITELIST_FILES = ['start.cmd', 'start.command', 'package.json', 'README.md', 'README.en.md', 'LICENSE'];
+export const WHITELIST_FILES = ['start.cmd', 'start.command', 'package.json', 'README.md', 'README.zh-CN.md', 'LICENSE'];
 export const WHITELIST_DIRS = ['server', 'app'];
 /** Unix modes written into the zip (the zip host is Unix, so the mode survives unzip on macOS / Linux). */
 export const MODE_FILE = 0o100644;

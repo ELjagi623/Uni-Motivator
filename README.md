@@ -1,82 +1,119 @@
-# 学费计价器 Tuition Ticker
+# Uni Motivator
 
-[English](README.en.md) | **简体中文**
+**English** | [简体中文](README.zh-CN.md)
 
-把你交的学费换算成「每秒多少钱」，读入你的课表后自动判断现在是不是上课时间，一秒一秒告诉你：这节课已经烧掉多少钱。摸鱼会被记账，翘课会被算进损失。完全在你自己的电脑上运行，开源，免费。
+> Your tuition is a taxi meter, and you are the passenger scrolling your phone in the back seat.
 
-<!-- TODO（发布前）：docs/screenshot.png 目前是占位图（只是示意版式的色块），请换成真实截图。 -->
-![界面截图（占位图，待换成真实截图）](docs/screenshot.png)
+**Uni Motivator** (it calls itself *Tuition Ticker* inside the app, 学费计价器 in Chinese) turns the tuition you paid into a cost per second. Feed it your timetable and it knows when you are in class, then shows how much money has burned in this very lecture, live, to the cent. Slack off and the meter keeps running, now on a full-screen page that tells you which snack you just threw away. Everything runs on your own computer. Free and open source.
 
-## 三步上手
+| Mid-lecture: the meter is running | One click on "I am slacking" |
+|:-:|:-:|
+| ![Dashboard in the middle of a class, showing the money spent in this class so far, the cost per second and the semester tuition](docs/images/dashboard.png) | ![Slacking page with a live wasted-money counter and "Already wasted 1 box of three-dish rice"](docs/images/slacking.png) |
 
-1. **安装 Node.js**：到 <https://nodejs.org/> 下载安装 LTS 版本（需要 22 或更高）。装一次就好，之后不用再管。
-2. **下载并解压**：在项目的 Releases 页面（仓库地址：待发布后填写）下载 `tuition-ticker-vX.Y.Z.zip`，解压到任意文件夹。发布包里已经包含界面，**不需要**运行 `npm`。
-3. **双击启动**：
-   - Windows：双击 `start.cmd`。
-   - macOS：**第一次**请在 Finder 里**右键 `start.command` → 打开 → 再点「打开」**（macOS 对下载来的脚本会有一次安全确认，之后可以直接双击）。如果提示没有权限，打开「终端」执行一次 `chmod +x start.command`。
+<sub>Screenshots come from the built-in demo mode: the timetable and the money are made up.</sub>
 
-浏览器会自动打开页面（地址形如 `http://127.0.0.1:4280`）；关闭那个黑色的命令窗口就停止服务。第一次打开会进入 7 步引导：语言 → 学校与地区 → 学费（按学年 / 按学期、币种、金额）→ 学年起始日与分割日 → 导入日历 → 识别课程 → 预览确认。想先看看效果，可以点「先看看演示」，演示用的是虚构课表，不会保存任何东西。
+## Features
 
-## 怎么从 Google Calendar 导出课表
+**Live cost meter**
 
-1. 在电脑上打开 [Google 日历](https://calendar.google.com/)，点右上角齿轮 →「设置」。
-2. 左侧选「导入和导出」→「导出」。会下载一个 `.zip`，里面每个日历一个 `.ics` 文件。
-3. 在引导的第 5 步（或「设置」→「日历」）把这个 `.zip` 直接拖进去，也可以只拖其中的某个 `.ics`。软件会自动解压、识别哪些是课。
+- A per-second money counter for the class you are in: spent so far, left in this class, class total, cost per second, elapsed and remaining time, plus a progress bar.
+- The screen follows your day on its own: in class, break, done for today, no class today, term not started, term over. Nothing to start or stop.
+- Semester (or year) tuition "fuel tank", today's timeline, and overlapping classes with a one-click switch.
+- The browser tab title shows the live amount, so you can watch it burn from another tab.
+- Rotating copy lines in three tones: gentle, normal, maximum anxiety.
+- Peek-proof mode: press `B` to blur every amount when someone walks past.
 
-学校的教务系统一般也能导出 `.ics`，同样可以直接导入。也支持「iCal 订阅链接」：在设置里粘贴 http / https 链接，软件会每 6 小时同步一次（链接只保存在本机，见下面的隐私说明；Google 日历的「iCal 格式的私密地址」相当于密码，请不要发给别人）。
+**Slacking mode**
 
-## 主要功能
+- "I am slacking" opens a full-screen page with a live counter of the money you are wasting.
+- It translates the money into everyday things (egg tarts, milk tea, boxes of rice, movie tickets, a flight to Tokyo ...) from a built-in price pack of 17 items.
+- A settlement card when you come back, with the duration, the equivalent and your total slacking in this class. Slacking ends by itself when the class ends.
 
-- 每秒计费的大数字、学期学费「油箱」、今日时间线；上课中 / 课间 / 今天没课 / 学期未开始 / 学期已结束等状态自动切换。
-- 「我要摸鱼」按钮：记录摸鱼时长并算出浪费的钱，折合成三餸饭、奶茶等等价物。
-- 课节列表：标记翘课 / 停课 / 迟到早退，统计「被学校吞掉」和「翘课损失」；手动添加日历里没有的课或补课。
-- 统计页、分享卡片（不含姓名和学校名）、翘课计算器、上课 / 下课提醒、日历订阅同步。
-- 防偷看模式（按 `B` 键模糊所有金额）、第二币种换算、学分加权计费、多学年管理。
-- 备份导出 / 导入，界面语言：简体中文、繁體中文、English，文案强度三档。
+**Classes, marks and stats**
 
-## 隐私
+- Weekly class list: mark classes as skipped or cancelled, enter minutes you were late or left early, and see what the school swallowed and what you lost.
+- Skip calculator: "Skipping this class = throwing away HK$X, about N bowls of noodles".
+- Statistics for the week, semester and year: spending, class hours, attendance, slacking total and rate, your favourite course to slack in, longest slack, most expensive class, course ranking with cost per hour, a weekly spending chart and a year-by-year history.
+- Share card: one click makes a 1080 x 1440 PNG with your numbers. It contains no name and no school name.
+- Class reminders: browser notifications before a class starts and a verdict when it ends.
 
-- **所有数据只保存在你电脑上**：软件文件夹里的 `data/` 目录（设置、标记、摸鱼记录和你导入的日历原文）。没有账号，没有云端，没有统计上报。
-- 服务只监听 `127.0.0.1`（本机回环地址），局域网里的其他设备访问不到；对写入请求还要求自定义请求头，防止别的网页偷偷调用。
-- 软件**不主动联网**。唯一的例外是你自己添加了「iCal 订阅链接」：此时本机的服务会按你给的链接下载日历。订阅链接保存在本机 `data/subscriptions.json`，不会出现在页面、日志或导出的备份里。汇率表是内置的，不联网获取。
-- 想完全清除：关闭软件，删除整个文件夹（或只删 `data/`）即可。
+**Timetable and billing**
 
-## 备份导出与导入
+- Import a `.ics` file, a `.zip` exported from Google Calendar, or paste an iCal subscription link (synced every 6 hours, or on demand). Recurring events, exception dates, moved single classes and time zones are handled.
+- Course recognition: events are grouped by title and course code, Lecture / Tutorial / Lab merge into one course, and exams or holidays are flagged so you can untick them.
+- Add classes by hand: a weekly course with skip dates, or a one-off make-up class. The app shows the new price per second and asks before recalculating.
+- Bill by semester or by year, split the money by class hours or by credits, and set the academic year start and semester split date. A split-date check finds your winter break and suggests a better date.
+- Seven currencies (HKD, CNY, USD, GBP, EUR, CAD, AUD) and an optional second currency shown as small print, using built-in rates you can edit.
+- Several academic years: import next year's calendar, old years are archived read-only, and the statistics keep them.
 
-「设置」→「备份」：
+**App**
 
-- **导出备份**会下载一个 `tuition-ticker-backup-日期.json`，里面有设置、标记、摸鱼记录和日历原文。**订阅链接不会被导出**（链接可能带私密令牌）。
-- **导入备份**只接受本软件导出的文件，会先检查格式和版本；确认后，软件会**先把当前数据自动备份**到 `data/backups/`（`…_before-import.json`），再整体替换。
-- 注意：备份里原本来自订阅的日历，导入后会变成**普通日历，不再自动同步**；需要的话请在设置里重新添加订阅链接。
+- First-run setup in 7 steps, or "Try the demo first" to look around with a made-up timetable that saves nothing.
+- Interface languages: English, Simplified Chinese, Traditional Chinese. Adjustable interface size.
+- Backup export and import, and a "reset all data" button that saves a copy first.
 
-## 常见问题
+## Quick start
 
-**Windows 防火墙会弹窗吗？** 不会。服务只监听本机回环地址 `127.0.0.1`，不接受来自网络的连接，所以系统不会询问「是否允许此应用访问网络」。
+Download one of the two zips from the [latest release](https://github.com/ELjagi623/Uni-Motivator/releases/latest), unzip it anywhere and double-click.
 
-**提示端口被占用 / 打不开页面？** 默认端口是 4280。被别的程序占用时，软件会自动改用 4281、4282……（最多到 4290），实际地址会在命令窗口里显示（`TUITION_TICKER_URL=…`）。已经开着一个实例时再双击会直接打开那个实例。也可以用 `--port 5000` 指定端口：`start.cmd --port 5000`。
+| Edition | Size | You need | Start it |
+|---|---|---|---|
+| **Lite** (`Uni-Motivator-vX.Y.Z-lite.zip`) | under 1 MB | [Node.js](https://nodejs.org/) 22 or newer, installed once | Windows: double-click `start.cmd`. macOS: double-click `start.command` |
+| **Portable** (`Uni-Motivator-vX.Y.Z-win-x64-portable.zip`) | about 38 MB | Nothing. It bundles the official Node.js runtime | Windows x64 only: double-click `start.cmd` |
 
-**双击后一闪而过 / 提示没有 Node？** 说明电脑上没有 Node.js，或版本低于 22。请到 <https://nodejs.org/> 安装 LTS 版本后重试；命令窗口里的提示会告诉你是哪种情况。macOS 看到「无法打开，因为来自身份不明的开发者」，请按上面的第 3 步右键 → 打开。
+Your browser opens the app at an address like `http://127.0.0.1:4280`. Closing the black command window stops it. On first launch you go through the 7-step setup: language, school and region, tuition, academic year dates, import calendar, recognise courses, confirm.
 
-**时间不准？** 软件完全使用你电脑的系统时间判断是否上课、算金额。请确认系统已开启自动对时和正确的时区。
+> [!NOTE]
+> macOS asks for confirmation once for downloaded scripts: the first time, right-click `start.command`, choose **Open**, then **Open** again. If it says you lack permission, run `chmod +x start.command` in Terminal once.
 
-**数据在哪？** 软件文件夹里的 `data/`（`config.json`、`marks.json`、`slacks.json`、`calendars/*.ics`，以及每次保存前自动留下的 `backups/`）。升级时把新版解压到别处，再把旧的 `data/` 文件夹复制过去即可；也可以用「备份导出 / 导入」。
+## Get your timetable in
 
-**换了学校 / 想重来？** 删除 `data/` 后重新打开，会再次进入引导。多学年（新学期、新学年）不需要重来：在「设置」→「学年管理」导入新学年的日历。
+- **Google Calendar:** open it on a computer, gear icon, **Settings**, **Import & export**, **Export**. Drop the downloaded `.zip` (or one `.ics` inside it) into setup step 5, or into Settings, Calendars.
+- **University timetable system:** most can export `.ics`. Import it the same way.
+- **Subscription link:** paste an http / https iCal link in Settings and the app keeps it in sync.
 
-**翻译靠谱吗？** 简体中文是原文；**繁體中文与 English 的界面文字、文案库未经母语者校对**，用词可能不够地道，欢迎提 Issue 或 PR（见 [CONTRIBUTING.md](CONTRIBUTING.md)）。
+> [!WARNING]
+> Google Calendar's "Secret address in iCal format" works like a password. Do not share it.
 
-**哪些浏览器能用？** 开发和测试只在 Windows + Chromium 内核浏览器（Chrome / Edge）上进行。Firefox、Safari、macOS 的实际运行**尚未验证**，详见 [docs/COMPAT.md](docs/COMPAT.md)。
+## How the money is counted
 
-## 从源码运行 / 参与开发
+- Cost per second = the tuition of a pool (one semester, or one year) divided by the total scheduled class time in that pool.
+- Spent so far = cost per second times the class time that has already passed. Every number is computed from your timetable and the system clock each time, never by a running counter, so it stays right after sleep or when the app was closed for a week.
+- The tuition is already paid, so skipped, cancelled and late classes still count as spent. They show up as separate losses instead: "swallowed by the school", "lost to skipping", "lost to being late". Spent plus left always equals the tuition.
 
-需要 Node.js 22+。
+## Privacy
 
-```
+- All data lives in the `data/` folder next to the app: settings, marks, slacking records and the calendars you imported. No accounts, no cloud, no analytics.
+- The service listens on `127.0.0.1` only, so other devices on your network cannot reach it. Write requests also need a custom header, so other web pages cannot call it behind your back.
+- The app does not go online by itself. The only exception is an iCal subscription link you add: then the local service downloads that calendar. The link is stored on this computer, never shown on screen or in logs, and not included in backups. Exchange rates are built in, never fetched.
+- To erase everything, close the app and delete the folder (or just `data/`).
+
+## FAQ
+
+**Will the Windows firewall ask me something?** No. The service only listens on the loopback address.
+
+**The page does not open or the port is taken?** The default port is 4280. If it is busy the app tries 4281 up to 4290 and prints the real address in the command window. You can pick a port: `start.cmd --port 5000`.
+
+**The window flashes and closes (Lite edition)?** Node.js is missing or older than version 22. Install the LTS version from <https://nodejs.org/>. The Portable edition does not need it.
+
+**The time looks wrong?** The app uses your computer's system clock. Turn on automatic time sync and check your time zone.
+
+**How do I upgrade?** Unzip the new version somewhere else and copy your old `data/` folder across, or use backup export and import.
+
+**A fresh start or a new school?** Delete `data/` and open the app again. A new semester or year does not need this: import the new calendar under Settings, Academic years.
+
+> [!NOTE]
+> Development and testing happened on Windows with Chromium-based browsers (Chrome, Edge). Firefox, Safari and macOS are **not verified yet**, see [docs/COMPAT.md](docs/COMPAT.md). Simplified Chinese is the original text; the English and Traditional Chinese texts have not been reviewed by native speakers, so some wording may sound off. Issues and pull requests are welcome.
+
+## Run from source
+
+Needs Node.js 22 or newer. Conventions and how to contribute are in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+```bash
 npm install
-npm run dev        # 开发模式（Vite + 本地服务）
-npm test           # 单元测试与服务端测试
-npm run build      # 构建 app/
-npm run release    # 在 release/ 下生成发布用 zip
+npm run dev        # development: Vite plus the local service
+npm test           # unit tests and server tests
+npm run build      # build app/
+npm run release    # lite zip under release/
+node scripts/release.mjs --skip-build --portable "C:/Program Files/nodejs/node.exe"   # Windows portable zip
 ```
-
-开发约定与贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。许可证：[MIT](LICENSE)。
