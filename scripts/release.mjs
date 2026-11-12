@@ -25,7 +25,7 @@ export const WHITELIST_DIRS = ['server', 'app'];
 /** Unix modes written into the zip (the zip host is Unix, so the mode survives unzip on macOS / Linux). */
 export const MODE_FILE = 0o100644;
 export const MODE_EXECUTABLE = 0o100755;
-const EXECUTABLE = new Set(['start.command']);
+const EXECUTABLE = new Set(['start.command', 'runtime/node']);
 const SKIP_NAMES = new Set(['.DS_Store', 'Thumbs.db']);
 
 function walk(dir, rel, out) {
@@ -79,12 +79,35 @@ export function collectPortableEntries(nodeExe, rootDir = root) {
   return entries;
 }
 
+/**
+ * The macOS (Apple Silicon) portable edition: the same whitelist minus start.cmd, with portable/start-macos.command as
+ * start.command and an unmodified Node.js runtime (the `node` binary of the darwin-arm64 tarball) under runtime/. The
+ * tarball's LICENSE, when it sits at ../LICENSE next to bin/node, is shipped as runtime/NODE-LICENSE.txt.
+ */
+export function collectMacEntries(nodeBin, rootDir = root) {
+  if (!nodeBin || !fs.existsSync(nodeBin)) throw new Error(`release: node binary not found: ${String(nodeBin)}`);
+  const entries = collectEntries(rootDir).filter((e) => e.name !== 'start.cmd' && e.name !== 'start.command');
+  entries.push({ name: 'start.command', abs: path.join(rootDir, 'portable', 'start-macos.command') });
+  entries.push({ name: 'runtime/node', abs: nodeBin });
+  entries.push({ name: 'runtime/NODE-NOTICE.txt', abs: path.join(rootDir, 'portable', 'NODE-NOTICE-macos.txt') });
+  const license = path.join(path.dirname(nodeBin), '..', 'LICENSE');
+  if (!fs.existsSync(license)) throw new Error(`release: the Node.js LICENSE was not found next to the runtime (${license})`);
+  entries.push({ name: 'runtime/NODE-LICENSE.txt', abs: license });
+  return entries;
+}
+
 function main() {
   const skipBuild = process.argv.includes('--skip-build');
   const portableAt = process.argv.indexOf('--portable');
+  const macAt = process.argv.indexOf('--portable-mac');
   const nodeExe = portableAt >= 0 ? process.argv[portableAt + 1] : null;
-  if (portableAt >= 0 && (!nodeExe || nodeExe.startsWith('--'))) {
-    console.error('release: --portable needs the path of a node.exe');
+  const nodeMac = macAt >= 0 ? process.argv[macAt + 1] : null;
+  if ((portableAt >= 0 && (!nodeExe || nodeExe.startsWith('--'))) || (macAt >= 0 && (!nodeMac || nodeMac.startsWith('--')))) {
+    console.error('release: --portable needs the path of a node.exe, --portable-mac the path of the macOS arm64 node binary');
+    process.exit(1);
+  }
+  if (portableAt >= 0 && macAt >= 0) {
+    console.error('release: use --portable or --portable-mac, not both');
     process.exit(1);
   }
   if (!skipBuild) {
@@ -100,11 +123,12 @@ function main() {
     console.error('release: package.json has no usable "version"');
     process.exit(1);
   }
-  const entries = nodeExe ? collectPortableEntries(path.resolve(nodeExe)) : collectEntries();
+  const entries = nodeMac ? collectMacEntries(path.resolve(nodeMac)) : nodeExe ? collectPortableEntries(path.resolve(nodeExe)) : collectEntries();
   const zip = buildZip(entries);
   const outDir = path.join(root, 'release');
   fs.mkdirSync(outDir, { recursive: true });
-  const outFile = path.join(outDir, nodeExe ? `tuition-ticker-v${pkg.version}-win-x64-portable.zip` : `tuition-ticker-v${pkg.version}.zip`);
+  const suffix = nodeMac ? '-macos-arm64-portable' : nodeExe ? '-win-x64-portable' : '';
+  const outFile = path.join(outDir, `tuition-ticker-v${pkg.version}${suffix}.zip`);
   fs.writeFileSync(outFile, zip);
   console.log(`release: ${entries.length} files -> ${path.relative(root, outFile)} (${(zip.length / 1024).toFixed(0)} KB)`);
   console.log('RELEASE_ZIP=' + outFile);

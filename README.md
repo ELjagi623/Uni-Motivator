@@ -54,17 +54,18 @@
 
 ## Quick start
 
-Download one of the two zips from the [latest release](https://github.com/ELjagi623/Uni-Motivator/releases/latest), unzip it anywhere and double-click.
+Download one of the zips from the [latest release](https://github.com/ELjagi623/Uni-Motivator/releases/latest), unzip it anywhere and double-click.
 
 | Edition | Size | You need | Start it |
 |---|---|---|---|
 | **Lite** (`Uni-Motivator-vX.Y.Z-lite.zip`) | under 1 MB | [Node.js](https://nodejs.org/) 22 or newer, installed once | Windows: double-click `start.cmd`. macOS: double-click `start.command` |
-| **Portable** (`Uni-Motivator-vX.Y.Z-win-x64-portable.zip`) | about 38 MB | Nothing. It bundles the official Node.js runtime | Windows x64 only: double-click `start.cmd` |
+| **Portable, Windows** (`Uni-Motivator-vX.Y.Z-win-x64-portable.zip`) | about 38 MB | Nothing. It bundles the official Node.js runtime | Windows x64 only: double-click `start.cmd` |
+| **Portable, macOS** (`Uni-Motivator-vX.Y.Z-macos-arm64-portable.zip`) | about 44 MB | Nothing. It bundles the official Node.js runtime | Apple Silicon (M1 or newer) only: double-click `start.command`. On an Intel Mac use the Lite edition |
 
 Your browser opens the app at an address like `http://127.0.0.1:4280`. Closing the black command window stops it. On first launch you go through the 7-step setup: language, school and region, tuition, academic year dates, import calendar, recognise courses, confirm.
 
 > [!NOTE]
-> macOS asks for confirmation once for downloaded scripts: the first time, right-click `start.command`, choose **Open**, then **Open** again. If it says you lack permission, run `chmod +x start.command` in Terminal once.
+> macOS asks for confirmation once for downloaded scripts: the first time, right-click `start.command`, choose **Open**, then **Open** again. On macOS 15 or newer, if there is no Open button, go to System Settings, Privacy & Security and click **Open Anyway**. If it says you lack permission, run `chmod +x start.command` in Terminal once.
 
 ## Get your timetable in
 
@@ -103,7 +104,7 @@ Your browser opens the app at an address like `http://127.0.0.1:4280`. Closing t
 **A fresh start or a new school?** Delete `data/` and open the app again. A new semester or year does not need this: import the new calendar under Settings, Academic years.
 
 > [!NOTE]
-> Development and testing happened on Windows with Chromium-based browsers (Chrome, Edge). Firefox, Safari and macOS are **not verified yet**, see [docs/COMPAT.md](docs/COMPAT.md). Simplified Chinese is the original text; the English and Traditional Chinese texts have not been reviewed by native speakers, so some wording may sound off. Issues and pull requests are welcome.
+> Development and testing happened on Windows with Chromium-based browsers (Chrome, Edge). Firefox, Safari and macOS are **not verified yet**, see [docs/COMPAT.md](docs/COMPAT.md); the macOS portable edition was built and checked statically but has not been run on a Mac. Simplified Chinese is the original text; the English and Traditional Chinese texts have not been reviewed by native speakers, so some wording may sound off. Issues and pull requests are welcome.
 
 ## Run from source
 

@@ -1,0 +1,6 @@
+This folder contains node, the unmodified official Node.js runtime for macOS on Apple Silicon (arm64),
+v26.13.0, downloaded from https://nodejs.org/dist/v26.13.0/ and checked against the published SHA-256 list, so the app
+runs without installing Node.js.
+
+The Node.js license, including the licenses of its bundled third-party components, is in NODE-LICENSE.txt next to this file.
+Source and official downloads: https://nodejs.org/

@@ -54,17 +54,18 @@
 
 ## 快速开始
 
-在[最新 Release](https://github.com/ELjagi623/Uni-Motivator/releases/latest) 下载下面两个压缩包之一，解压到任意位置，双击启动。
+在[最新 Release](https://github.com/ELjagi623/Uni-Motivator/releases/latest) 下载下面的压缩包之一，解压到任意位置，双击启动。
 
 | 版本 | 大小 | 需要 | 启动方式 |
 |---|---|---|---|
 | **轻量版**（`Uni-Motivator-vX.Y.Z-lite.zip`） | 不到 1 MB | 先装一次 [Node.js](https://nodejs.org/) 22 或更高版本 | Windows：双击 `start.cmd`；macOS：双击 `start.command` |
-| **免安装版**（`Uni-Motivator-vX.Y.Z-win-x64-portable.zip`） | 约 38 MB | 什么都不用装，已自带官方 Node.js 运行环境 | 仅限 Windows x64：双击 `start.cmd` |
+| **免安装版，Windows**（`Uni-Motivator-vX.Y.Z-win-x64-portable.zip`） | 约 38 MB | 什么都不用装，已自带官方 Node.js 运行环境 | 仅限 Windows x64：双击 `start.cmd` |
+| **免安装版，macOS**（`Uni-Motivator-vX.Y.Z-macos-arm64-portable.zip`） | 约 44 MB | 什么都不用装，已自带官方 Node.js 运行环境 | 仅限 Apple 芯片（M1 及更新）：双击 `start.command`。Intel Mac 请用轻量版 |
 
 浏览器会自动打开页面（地址形如 `http://127.0.0.1:4280`），关闭那个黑色的命令窗口就停止服务。第一次打开会进入 7 步引导：语言、学校与地区、学费、学年日期、导入日历、识别课程、预览确认。
 
 > [!NOTE]
-> macOS 对下载来的脚本会有一次安全确认：第一次请在 Finder 里**右键 `start.command`，选择「打开」，再点一次「打开」**。如果提示没有权限，在「终端」执行一次 `chmod +x start.command`。
+> macOS 对下载来的脚本会有一次安全确认：第一次请在 Finder 里**右键 `start.command`，选择「打开」，再点一次「打开」**。如果在 macOS 15 或更新的系统上没有「打开」按钮，请到「系统设置」→「隐私与安全性」点**「仍要打开」**。如果提示没有权限，在「终端」执行一次 `chmod +x start.command`。
 
 ## 怎么把课表导进来
 
@@ -103,7 +104,7 @@
 **换学校 / 想重来？** 删除 `data/` 后重新打开即可。新学期、新学年不需要重来：在「设置」→「学年管理」导入新日历。
 
 > [!NOTE]
-> 开发和测试只在 Windows + Chromium 内核浏览器（Chrome、Edge）上进行。Firefox、Safari、macOS **尚未验证**，详见 [docs/COMPAT.md](docs/COMPAT.md)。简体中文是原文；English 和繁體中文的界面文字未经母语者校对，用词可能不够地道，欢迎提 Issue 或 PR。
+> 开发和测试只在 Windows + Chromium 内核浏览器（Chrome、Edge）上进行。Firefox、Safari、macOS **尚未验证**，详见 [docs/COMPAT.md](docs/COMPAT.md)；macOS 免安装版只做过打包后的静态检查，还没有在真正的 Mac 上运行过。简体中文是原文；English 和繁體中文的界面文字未经母语者校对，用词可能不够地道，欢迎提 Issue 或 PR。
 
 ## 从源码运行
 
