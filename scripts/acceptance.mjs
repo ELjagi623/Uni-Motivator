@@ -12,9 +12,12 @@ import { checks as p1 } from './acceptance/p1.mjs';
 import { checks as p2 } from './acceptance/p2.mjs';
 import { checks as p3a } from './acceptance/p3a.mjs';
 import { checks as p3b } from './acceptance/p3b.mjs';
+import { checks as p3c } from './acceptance/p3c.mjs';
+import { checks as p4a } from './acceptance/p4a.mjs';
+import { checks as p4b } from './acceptance/p4b.mjs';
 import { cleanupAll } from './acceptance/lib.mjs';
 
-const all = [...p0, ...p1, ...p2, ...p3a, ...p3b];
+const all = [...p0, ...p1, ...p2, ...p3a, ...p3b, ...p3c, ...p4a, ...p4b];
 
 function parseOnly(argv) {
   const i = argv.indexOf('--only');

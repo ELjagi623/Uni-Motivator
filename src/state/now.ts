@@ -13,3 +13,9 @@ export const activeNow = computed(() => nowOverride.value ?? clock.now.value + (
 
 /** Changes once a minute. Components that read it re-render at most once a minute (e.g. the aria-live summary). */
 export const minuteBucket = computed(() => Math.floor(activeNow.value / 60_000));
+
+/** Changes once a second. Things that only need second resolution (class reminders) read this, not `activeNow`. */
+export const secondBucket = computed(() => Math.floor(activeNow.value / 1000));
+
+/** Changes once an hour. Academic-year roles (current / archived) only need hour resolution. */
+export const hourBucket = computed(() => Math.floor(activeNow.value / 3_600_000));

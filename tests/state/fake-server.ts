@@ -9,6 +9,7 @@ export interface RecordedCall {
   headers: Record<string, string>;
   body: string | undefined;
   json: unknown;
+  keepalive: boolean;
 }
 
 type Doc = { schemaVersion: number; rev: number; [key: string]: unknown };
@@ -17,6 +18,11 @@ export interface FakeServer {
   calls: RecordedCall[];
   docs: Record<'config' | 'marks' | 'slacks', Doc>;
   calendars: Map<string, string>;
+  /** Subscription feeds: link -> calendar text (set it before the app subscribes / syncs). */
+  sources: Map<string, string>;
+  /** Links whose source is "down": subscribing / syncing them fails with a network error. */
+  down: Set<string>;
+  subscriptions: Array<{ calendarId: string; url: string; addedMs: number; lastSyncMs: number; lastError: string | null }>;
   /** Make the next PUT of `name` fail with 409 (and pretend another tab had changed the document). */
   conflictNext(name: 'config' | 'marks' | 'slacks', doc?: Record<string, unknown>): void;
   failNext(status: number): void;
@@ -44,6 +50,10 @@ export function installFakeServer(initial: Partial<Record<'config' | 'marks' | '
   };
   const cals = new Map(calendars.map((c) => [c.id, c.text]));
   const calls: RecordedCall[] = [];
+  const sources = new Map<string, string>();
+  const down = new Set<string>();
+  const subscriptions: FakeServer['subscriptions'] = [];
+  let syncClock = 1_700_000_000_000;
   const conflicts = new Map<string, Record<string, unknown> | undefined>();
   let failStatus: number | null = null;
   const hooks: { onCall: ((call: RecordedCall) => void) | null } = { onCall: null };
@@ -56,7 +66,7 @@ export function installFakeServer(initial: Partial<Record<'config' | 'marks' | '
     const body = typeof init?.body === 'string' ? init.body : undefined;
     let json: unknown;
     if (body !== undefined && (headers['content-type'] ?? '').includes('json')) json = JSON.parse(body);
-    const call = { method, url, headers, body, json };
+    const call = { method, url, headers, body, json, keepalive: init?.keepalive === true };
     calls.push(call);
     hooks.onCall?.(call);
 
@@ -66,7 +76,11 @@ export function installFakeServer(initial: Partial<Record<'config' | 'marks' | '
       return respond(status, { error: 'boom', message: 'server said no' });
     }
     if (method === 'GET' && url === '/api/data') {
-      return respond(200, { ...docs, calendars: [...cals].map(([id, text]) => ({ id, text })) });
+      return respond(200, {
+        ...docs,
+        calendars: [...cals].map(([id, text]) => ({ id, text })),
+        subscriptions: subscriptions.map((s) => ({ calendarId: s.calendarId, addedMs: s.addedMs, lastSyncMs: s.lastSyncMs, lastError: s.lastError })),
+      });
     }
     const put = /^\/api\/docs\/(config|marks|slacks)$/.exec(url);
     if (method === 'PUT' && put) {
@@ -82,6 +96,32 @@ export function installFakeServer(initial: Partial<Record<'config' | 'marks' | '
       docs[name] = { schemaVersion: 1, ...doc, rev: rev + 1 };
       return respond(200, { rev: rev + 1 });
     }
+    if (method === 'POST' && url === '/api/subscriptions') {
+      const link = (json as { url: string }).url;
+      if (!link.startsWith('http://') && !link.startsWith('https://')) return respond(400, { error: 'bad_url', message: 'not a valid link' });
+      if (down.has(link) || !sources.has(link)) return respond(502, { error: 'network', message: 'unreachable' });
+      const calendarId = `sub-${subscriptions.length + 1}`;
+      cals.set(calendarId, sources.get(link) as string);
+      syncClock += 1000;
+      subscriptions.push({ calendarId, url: link, addedMs: syncClock, lastSyncMs: syncClock, lastError: null });
+      return respond(201, { calendarId, lastSyncMs: syncClock, changed: true });
+    }
+    const syncMatch = url.match(/^\/api\/calendars\/([^/]+)\/sync$/);
+    if (method === 'POST' && syncMatch) {
+      const sub = subscriptions.find((x) => x.calendarId === decodeURIComponent(syncMatch[1]));
+      if (!sub) return respond(404, { error: 'not_found', message: 'no subscription' });
+      if (down.has(sub.url) || !sources.has(sub.url)) {
+        sub.lastError = 'network';
+        return respond(502, { error: 'network', message: 'unreachable' });
+      }
+      const text = sources.get(sub.url) as string;
+      const changed = cals.get(sub.calendarId) !== text;
+      cals.set(sub.calendarId, text);
+      syncClock += 1000;
+      sub.lastSyncMs = syncClock;
+      sub.lastError = null;
+      return respond(200, { calendarId: sub.calendarId, lastSyncMs: sub.lastSyncMs, changed });
+    }
     if (method === 'POST' && url === '/api/calendars') {
       const id = fakeId(body ?? '');
       cals.set(id, body ?? '');
@@ -90,6 +130,8 @@ export function installFakeServer(initial: Partial<Record<'config' | 'marks' | '
     const del = /^\/api\/calendars\/([^/]+)$/.exec(url);
     if (method === 'DELETE' && del) {
       const id = decodeURIComponent(del[1]);
+      const at = subscriptions.findIndex((x) => x.calendarId === id);
+      if (at !== -1) subscriptions.splice(at, 1);
       if (!cals.delete(id)) return respond(404, { error: 'not_found', message: 'no such calendar' });
       return respond(200, { ok: true });
     }
@@ -101,6 +143,9 @@ export function installFakeServer(initial: Partial<Record<'config' | 'marks' | '
     calls,
     docs,
     calendars: cals,
+    sources,
+    down,
+    subscriptions,
     conflictNext: (name, doc) => conflicts.set(name, doc),
     failNext: (status) => {
       failStatus = status;

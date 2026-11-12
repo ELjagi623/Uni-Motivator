@@ -24,9 +24,9 @@ import {
   updateDraft,
   type BillingPeriod,
   type RegionId,
-  type SplitCheckView,
 } from '../../state/onboarding';
 import { Button, ChoiceGroup, StepBar, TextInput } from '../components/controls';
+import { SplitChecks } from '../components/SplitChecks';
 import { CourseRecognition } from './CourseRecognition';
 
 const STEP_NAME_KEYS: Record<number, MessageKey> = {
@@ -285,20 +285,6 @@ function StepImport() {
   );
 }
 
-function splitMessage(check: SplitCheckView): string {
-  const year = check.year;
-  switch (check.status) {
-    case 'ok':
-      return t('onboarding.step7.splitOk', { year, split: check.split });
-    case 'suggest':
-      return t('onboarding.step7.splitSuggest', { year, from: check.gapFrom ?? '', to: check.gapTo ?? '', suggest: check.suggestedSplit ?? '' });
-    case 'single-semester':
-      return t('onboarding.step7.splitSingle', { year });
-    default:
-      return t('onboarding.step7.splitNoGap', { year });
-  }
-}
-
 function StepPreview() {
   const p = preview.value;
   const d = draft.value;
@@ -361,11 +347,7 @@ function StepPreview() {
       {p.splitChecks.length > 0 ? (
         <div class="field-group">
           <span class="label">{t('onboarding.step7.splitTitle')}</span>
-          <ul class="split-checks" id="split-checks">
-            {p.splitChecks.map((c) => (
-              <li key={c.year}>{splitMessage(c)}</li>
-            ))}
-          </ul>
+          <SplitChecks checks={p.splitChecks} id="split-checks" />
         </div>
       ) : null}
     </div>

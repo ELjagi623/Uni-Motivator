@@ -31,8 +31,8 @@ function SlackingView({ ctx }: { ctx: SlackContext }) {
       <div class="slack-content">
         <span class="label slack-label">{t('slack.wasted')}</span>
         <div class="hero-row slack-hero">
-          <span class="num slack-currency">{symbol}</span>
-          <TickingNumber class="slack-number" field="slack-amount" compute={(nowMs) => slackLiveAt(ctx, nowMs).amountMinor} />
+          <span class="num slack-currency money">{symbol}</span>
+          <TickingNumber class="slack-number money" field="slack-amount" compute={(nowMs) => slackLiveAt(ctx, nowMs).amountMinor} />
         </div>
         <span class="pill slack-pill" id="slack-equivalent">
           <TickingText field="slack-equivalent" compute={(nowMs) => equivalentHint(slackLiveAt(ctx, nowMs).amountMinor, ctx.currency)} />
@@ -66,8 +66,8 @@ function SettlementCard({ ctx }: { ctx: SlackContext }) {
           {t('slack.settleTitle')}
         </span>
         <div class="hero-row">
-          <span class="num accent settle-currency">{symbol}</span>
-          <span class="num settle-number" data-field="settle-amount">
+          <span class="num accent settle-currency money">{symbol}</span>
+          <span class="num settle-number money" data-field="settle-amount">
             {formatAmountMinor(texts.amountMinor)}
           </span>
         </div>

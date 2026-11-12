@@ -17,9 +17,11 @@ import {
 import { chooseSession, dashboardModel, selectedSessionId } from '../../state/dashboardState';
 import { activeNow, minuteBucket } from '../../state/now';
 import { activeConfig } from '../../state/source';
+import { demoActive } from '../../state/demoState';
 import { slackUi, startSlack } from '../../state/slack';
 import { Button } from '../components/controls';
 import { CopyCarousel } from '../components/CopyCarousel';
+import { SecondaryAmount } from '../components/Secondary';
 import { TickingNumber, TickingText } from '../components/Ticking';
 import { Timeline } from '../components/Timeline';
 import { TuitionTank } from '../components/TuitionTank';
@@ -35,7 +37,7 @@ const STATUS_KEYS: Record<DashboardModel['kind'], MessageKey> = {
 
 function Money({ minor, currency, field }: { minor: number; currency: CurrencyCode; field?: string }) {
   return (
-    <span class="num" data-field={field}>
+    <span class="num money" data-field={field}>
       {formatMinor(minor, currency)}
     </span>
   );
@@ -87,17 +89,22 @@ function InClass({ model, view }: { model: DashboardModel; view: SessionView }) 
       <div class="dash-hero">
         <span class="label">{t('dashboard.consumed')}</span>
         <div class="hero-row">
-          <span class="num accent hero-currency">{symbol}</span>
-          <TickingNumber class="hero-number" field="session-consumed" compute={(nowMs) => liveAt(model, view.id, nowMs).sessionConsumedMinor} />
+          <span class="num accent hero-currency money">{symbol}</span>
+          <TickingNumber class="hero-number money" field="session-consumed" compute={(nowMs) => liveAt(model, view.id, nowMs).sessionConsumedMinor} />
         </div>
+        <SecondaryAmount field="session-consumed-second" compute={(nowMs) => liveAt(model, view.id, nowMs).sessionConsumedMinor} />
         <p class="muted dash-meta">
-          {t('dashboard.rate')} <b class="num" data-field="rate-per-sec">{view.rateText}</b> · {t('dashboard.elapsed')}{' '}
+          {t('dashboard.rate')} <b class="num money" data-field="rate-per-sec">{view.rateText}</b> · {t('dashboard.elapsed')}{' '}
           <b class="num"><TickingText field="elapsed" compute={(nowMs) => durationText(liveAt(model, view.id, nowMs).elapsedSec)} /></b> · {t('dashboard.timeLeft')}{' '}
           <b class="num"><TickingText field="time-left" compute={(nowMs) => durationText(liveAt(model, view.id, nowMs).remainingSec)} /></b>
         </p>
         <p class="muted small">
-          {t('dashboard.sessionLeft')} {symbol}
-          <TickingNumber field="session-remaining" compute={(nowMs) => liveAt(model, view.id, nowMs).sessionRemainingMinor} /> · {t('dashboard.sessionCost')} <Money minor={view.costMinor} currency={model.currency} field="session-cost" />
+          {t('dashboard.sessionLeft')}{' '}
+          <span class="money">
+            {symbol}
+            <TickingNumber field="session-remaining" compute={(nowMs) => liveAt(model, view.id, nowMs).sessionRemainingMinor} />
+          </span>{' '}
+          · {t('dashboard.sessionCost')} <Money minor={view.costMinor} currency={model.currency} field="session-cost" />
         </p>
       </div>
       <Timeline model={model} />
@@ -105,7 +112,7 @@ function InClass({ model, view }: { model: DashboardModel; view: SessionView }) 
         <TuitionTank model={model} currency={model.currency} sessionId={view.id} />
         <div class="card carousel-card">
           <span class="label">{t('dashboard.carouselLabel')}</span>
-          <CopyCarousel class="carousel-text" scene="in-class" getVars={() => inClassCopyVars(model, view, activeNow.peek())} />
+          <CopyCarousel class="carousel-text money" scene="in-class" getVars={() => inClassCopyVars(model, view, activeNow.peek())} />
           <span class="muted small" id="slack-today">
             {t('dashboard.slackToday', { minutes: minutesOf(model.slackToday.seconds) })} · {t('dashboard.slackWasted')} <Money minor={model.slackToday.amountMinor} currency={model.currency} field="slack-today-amount" />
           </span>
@@ -158,9 +165,10 @@ function Today({ model, empty }: { model: DashboardModel; empty: boolean }) {
     <>
       <div class="card state-card">
         <span class="label">{t('dashboard.todaySummary')}</span>
-        <span class="num state-number" data-field="today-spent">
+        <span class="num state-number money" data-field="today-spent">
           {formatMinor(empty ? 0 : model.todaySpentMinor, model.currency)}
         </span>
+        <SecondaryAmount field="today-spent-second" minor={empty ? 0 : model.todaySpentMinor} />
         <span class="muted small">
           {empty ? t('dashboard.noClassNote') : t('dashboard.doneNote', { n: model.timeline.length })}
           {next && model.nextWhen ? (
@@ -196,12 +204,13 @@ function BeforeTerm({ model }: { model: DashboardModel }) {
         <div class="card inset" id="term-card">
           <span class="label">{t('dashboard.termTuition')}</span>
           <div class="hero-row">
-            <span class="num accent">{getCurrency(model.currency).symbol}</span>
-            <b class="num term-figure" data-field="pool-tuition">
+            <span class="num accent money">{getCurrency(model.currency).symbol}</span>
+            <b class="num term-figure money" data-field="pool-tuition">
               {formatAmountMinor(term.tuitionMinor)}
             </b>
           </div>
-          <span class="muted small">{t('dashboard.termStats', { sessions: term.sessionCount, hours: term.hours, rate: term.rateText })}</span>
+          <SecondaryAmount field="pool-tuition-second" minor={term.tuitionMinor} />
+          <span class="muted small money">{t('dashboard.termStats', { sessions: term.sessionCount, hours: term.hours, rate: term.rateText })}</span>
         </div>
       ) : null}
       <span class="muted small">{t('dashboard.beforeFoot')}</span>
@@ -215,20 +224,28 @@ function AfterTerm({ model }: { model: DashboardModel }) {
     <div class="card state-card">
       <span class="label">{t('dashboard.termSummary')}</span>
       <div class="hero-row">
-        <span class="num accent hero-currency">{getCurrency(model.currency).symbol}</span>
-        <span class="num state-number" data-field="pool-tuition">
+        <span class="num accent hero-currency money">{getCurrency(model.currency).symbol}</span>
+        <span class="num state-number money" data-field="pool-tuition">
           {formatAmountMinor(term?.tuitionMinor ?? 0)}
         </span>
       </div>
+      <SecondaryAmount field="pool-tuition-second" minor={term?.tuitionMinor ?? 0} />
       {term ? (
         <>
-          <span class="muted small">{t('dashboard.termStats', { sessions: term.sessionCount, hours: term.hours, rate: term.rateText })}</span>
+          <span class="muted small money">{t('dashboard.termStats', { sessions: term.sessionCount, hours: term.hours, rate: term.rateText })}</span>
           <span class="muted small">
             {t('dashboard.termSlack', { minutes: minutesOf(term.slackSeconds) })} · {t('dashboard.slackWasted')} <Money minor={term.slackAmountMinor} currency={model.currency} />
           </span>
         </>
       ) : null}
       <span class="muted small">{t('dashboard.afterFoot')}</span>
+      {demoActive.value ? null : (
+        <div>
+          <a class="btn btn--primary" id="share-link" href="#/stats">
+            {t('dashboard.shareButton')}
+          </a>
+        </div>
+      )}
     </div>
   );
 }

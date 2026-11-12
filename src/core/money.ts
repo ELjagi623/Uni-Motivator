@@ -90,3 +90,32 @@ export function convert(amount: number, from: CurrencyCode, to: CurrencyCode, ra
   if (from === to) return amount;
   return (amount * usdRate(from, rates)) / usdRate(to, rates);
 }
+
+/** A usable exchange rate: a finite number greater than zero. */
+export function isValidRate(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+/** How many `to` units one `from` unit buys (e.g. 1 HKD = 0.9209 CNY), with the built-in table and the overrides. */
+export function pairRate(from: CurrencyCode, to: CurrencyCode, rates?: RateTable): number {
+  return convert(1, from, to, rates);
+}
+
+/**
+ * The rate table that makes `1 from = perUnit to`: the override of `to` is set so that, with `from`'s current rate,
+ * the pair comes out exactly as asked (the override of `from` is left alone). Returns null when `perUnit` is not a
+ * number greater than zero, or when `from` and `to` are the same currency (that pair is always 1).
+ */
+export function withPairRate(from: CurrencyCode, to: CurrencyCode, perUnit: number, rates?: RateTable): RateTable | null {
+  if (!isValidRate(perUnit) || from === to) return null;
+  const fromUsd = convert(1, from, 'USD', rates);
+  return { ...(rates ?? {}), [to]: fromUsd / perUnit };
+}
+
+/** Parse a rate typed by the user ("0.92", "1,000.5"); null when it is not a number greater than zero. */
+export function parseRateText(text: string): number | null {
+  const cleaned = text.replace(/[,\s]/g, '');
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(cleaned)) return null;
+  const n = Number(cleaned);
+  return isValidRate(n) ? n : null;
+}

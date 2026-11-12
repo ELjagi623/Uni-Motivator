@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
+import { createCalendarSync } from './calendar-sync.js';
 import { createHandler } from './router.js';
 import { openBrowser } from './open-browser.js';
 
@@ -110,10 +111,11 @@ export function probePort(port, timeoutMs = 1500) {
  * Start listening on 127.0.0.1:<port> (0 = any free port).
  * @returns {Promise<{server: http.Server, port: number, url: string, close: () => Promise<void>}>}
  */
-export function startServer({ port, dataDir, appDir = path.join(rootDir, 'app'), version = readVersion() }) {
+export function startServer({ port, dataDir, appDir = path.join(rootDir, 'app'), version = readVersion(), syncOptions = {}, startupSync = true }) {
   const store = createStore({ dataDir });
+  const sync = createCalendarSync({ store, ...syncOptions });
   let boundPort = port;
-  const handler = createHandler({ store, getPort: () => boundPort, appDir, version });
+  const handler = createHandler({ store, getPort: () => boundPort, appDir, version, sync });
   const server = http.createServer((req, res) => {
     handler(req, res);
   });
@@ -122,12 +124,16 @@ export function startServer({ port, dataDir, appDir = path.join(rootDir, 'app'),
     server.listen({ port, host: HOST }, () => {
       server.off('error', reject);
       boundPort = server.address().port;
+      // Subscriptions: one sync now, then every 6 hours (the timer is unref'd and stopped on close).
+      if (startupSync) sync.start();
       resolve({
         server,
         port: boundPort,
         url: `http://${HOST}:${boundPort}`,
+        sync,
         close: () =>
           new Promise((res) => {
+            sync.stop();
             server.close(() => res());
             server.closeAllConnections?.();
           }),

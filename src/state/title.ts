@@ -5,11 +5,14 @@ import { formatMinorWhole } from '../core/money';
 import { t } from '../i18n';
 import { liveAt, shownView } from './dashboard';
 import { dashboardModel, selectedSessionId } from './dashboardState';
+import { privacyOn } from './privacy';
 import { slackContextOf, slackTitleOf, slackUi } from './slack';
 import { activeNow } from './now';
 
 /** The title for the current state (reads signals, so it can be used inside an effect). */
 export function computeTitle(): string {
+  // Peek-proof mode: the tab title would show the amount, so it shows only the app name.
+  if (privacyOn.value) return t('app.title');
   const nowMs = activeNow.value;
   const ui = slackUi.value;
   if (ui?.mode === 'slacking') {

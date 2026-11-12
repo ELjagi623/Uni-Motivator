@@ -6,7 +6,7 @@
 //  - A 409 (another tab saved first) re-fetches everything and shows a notice; local unsaved edits are dropped.
 
 import { signal } from '@preact/signals';
-import { ApiError, getData, putDoc, type CalendarFile, type DataBundle, type DocName, type RawDoc } from '../api/client';
+import { ApiError, getData, putDoc, type CalendarFile, type DataBundle, type DocName, type RawDoc, type SubscriptionInfo } from '../api/client';
 import { t } from '../i18n';
 import { emptyConfig, type AppConfig } from './config';
 
@@ -22,6 +22,8 @@ export const config = signal<AppConfig>(emptyConfig());
 export const marks = signal<DocValue>({ schemaVersion: 1 });
 export const slacks = signal<DocValue>({ schemaVersion: 1 });
 export const calendars = signal<CalendarFile[]>([]);
+/** Calendars fed by a subscription link (the server never tells us the link). */
+export const subscriptions = signal<SubscriptionInfo[]>([]);
 
 export type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 export const loadStatus = signal<LoadStatus>('idle');
@@ -48,6 +50,7 @@ function applyBundle(bundle: DataBundle): void {
     (docSignals[name] as { value: unknown }).value = stripRev(bundle[name]);
   }
   calendars.value = bundle.calendars;
+  subscriptions.value = bundle.subscriptions ?? [];
 }
 
 function clearPending(): void {
@@ -60,6 +63,16 @@ function settle(): void {
   if (timers.size === 0 && inFlight.size === 0 && dirty.size === 0) {
     for (const w of waiters.splice(0)) w();
   }
+}
+
+/**
+ * Fetch only the calendars and the subscription list again (after a sync). Documents and their pending, unsaved edits
+ * stay as they are.
+ */
+export async function refreshCalendars(): Promise<void> {
+  const bundle = await getData();
+  calendars.value = bundle.calendars;
+  subscriptions.value = bundle.subscriptions ?? [];
 }
 
 /** Fetch every document and calendar from the server. Pending unsaved edits are discarded. */
@@ -90,7 +103,7 @@ function schedule(name: DocName, delay: number): void {
   );
 }
 
-async function send(name: DocName): Promise<void> {
+async function send(name: DocName, leaving = false): Promise<void> {
   if (inFlight.has(name)) {
     // A request for this document is still running; send again right after it finishes.
     schedule(name, SAVE_DELAY_MS);
@@ -100,10 +113,15 @@ async function send(name: DocName): Promise<void> {
   dirty.delete(name);
   let conflict = false;
   try {
-    const result = await putDoc(name, revs[name], docSignals[name].value as Record<string, unknown>);
+    const result = await putDoc(name, revs[name], docSignals[name].value as Record<string, unknown>, leaving ? { keepalive: true } : {});
     if (result.ok) revs[name] = result.rev;
     else conflict = true;
   } catch (err) {
+    if (leaving) {
+      // The page is going away: nobody can read an error message, and the next visit starts from what the disk has.
+      inFlight.delete(name);
+      return;
+    }
     notice.value = t('sync.saveFailed', { message: err instanceof ApiError ? err.message : String(err) });
     dirty.add(name);
     schedule(name, RETRY_DELAY_MS);
@@ -145,6 +163,33 @@ export function flushSaves(): Promise<void> {
   return new Promise((resolve) => waiters.push(resolve));
 }
 
+/**
+ * The page is being hidden or closed: send every pending edit right now instead of waiting for the 500 ms debounce.
+ * The requests use `keepalive` so the browser finishes them even while the page unloads; failures are ignored.
+ */
+export function flushForLeave(): void {
+  for (const name of new Set<DocName>([...timers.keys(), ...dirty])) {
+    const timer = timers.get(name);
+    if (timer !== undefined) clearTimeout(timer);
+    timers.delete(name);
+    if (!inFlight.has(name)) void send(name, true);
+  }
+}
+
+/** Hook `pagehide` and `visibilitychange` (to hidden) up to `flushForLeave`. Returns the function that removes them. */
+export function installLeaveFlush(target: Window = window, doc: Document = document): () => void {
+  const onHide = () => flushForLeave();
+  const onVisibility = () => {
+    if (doc.visibilityState === 'hidden') flushForLeave();
+  };
+  target.addEventListener('pagehide', onHide);
+  doc.addEventListener('visibilitychange', onVisibility);
+  return () => {
+    target.removeEventListener('pagehide', onHide);
+    doc.removeEventListener('visibilitychange', onVisibility);
+  };
+}
+
 export function dismissNotice(): void {
   notice.value = null;
 }
@@ -158,6 +203,7 @@ export function resetDataState(): void {
   marks.value = { schemaVersion: 1 };
   slacks.value = { schemaVersion: 1 };
   calendars.value = [];
+  subscriptions.value = [];
   revs.config = 0;
   revs.marks = 0;
   revs.slacks = 0;

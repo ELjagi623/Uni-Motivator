@@ -10,6 +10,7 @@ import { formatMinor, getCurrency, majorToMinor, type CurrencyCode } from '../co
 import type { AcademicConfig, Course, Session } from '../core/types';
 import { getRegionPreset, type RegionPreset } from '../data/regions';
 import { calendarNames, resetCalendarState } from './calendars';
+import { parseCreditsText } from './credits';
 import { DEFAULT_CURRENCY, type AppConfig, type CalendarSource } from './config';
 import { calendars, flushSaves, setConfig } from './data';
 import { allSessions, billableOf } from './derived';
@@ -80,9 +81,14 @@ export function isGroupSelected(draft: OnboardingDraft, group: CourseGroup): boo
 }
 
 function parseCredits(text: string | undefined): number | null {
-  if (text === undefined || text.trim() === '') return null;
-  const n = Number(text);
-  return Number.isFinite(n) && n > 0 ? n : null;
+  if (text === undefined) return null;
+  const parsed = parseCreditsText(text);
+  return parsed === undefined ? null : parsed;
+}
+
+/** True when the credits typed for a group are not empty and not a number greater than zero. */
+export function creditsInvalid(text: string | undefined): boolean {
+  return text !== undefined && parseCreditsText(text) === undefined;
 }
 
 /** The courses the user has ticked, with the typed names and credits. Colours follow the group order. */
@@ -201,15 +207,20 @@ export function buildPreview(draft: OnboardingDraft, sessions: readonly Session[
     pools: poolViews,
     rate: rangeText(rates, (v) => `${currencySymbol(draft.currency)}${v.toFixed(4)}`),
     average: rangeText(averages, (v) => formatMinor(v, draft.currency)),
-    splitChecks: checkSplitDate(billable, academic).map((c) => ({
-      year: c.year,
-      status: c.status,
-      split: monthDayOf(c.splitMs),
-      gapFrom: c.gapFromMs === undefined ? undefined : monthDayOf(c.gapFromMs),
-      gapTo: c.gapToMs === undefined ? undefined : monthDayOf(c.gapToMs),
-      suggestedSplit: c.suggestedSplit,
-    })),
+    splitChecks: splitCheckViews(billable, academic),
   };
+}
+
+/** The split-date check of every academic year, as the text-ready views the wizard and the settings page show. */
+export function splitCheckViews(sessions: readonly Session[], academic: AcademicConfig): SplitCheckView[] {
+  return checkSplitDate(sessions, academic).map((c) => ({
+    year: c.year,
+    status: c.status,
+    split: monthDayOf(c.splitMs),
+    gapFrom: c.gapFromMs === undefined ? undefined : monthDayOf(c.gapFromMs),
+    gapTo: c.gapToMs === undefined ? undefined : monthDayOf(c.gapToMs),
+    suggestedSplit: c.suggestedSplit,
+  }));
 }
 
 function currencySymbol(code: CurrencyCode): string {

@@ -34,12 +34,18 @@ export function TuitionTank({ model, currency, sessionId, now }: TuitionTankProp
       </div>
       <div class="tank__numbers">
         <span class="muted">
-          {t('dashboard.burned')} {symbol}
-          <TickingNumber class="tank__figure" field="pool-consumed" now={now} compute={(nowMs) => liveAt(model, sessionId, nowMs).poolConsumedMinor} />
+          {t('dashboard.burned')}{' '}
+          <span class="money">
+            {symbol}
+            <TickingNumber class="tank__figure" field="pool-consumed" now={now} compute={(nowMs) => liveAt(model, sessionId, nowMs).poolConsumedMinor} />
+          </span>
         </span>
         <span class="muted">
-          {t('dashboard.left')} {symbol}
-          <TickingNumber class="tank__figure" field="pool-remaining" now={now} compute={(nowMs) => liveAt(model, sessionId, nowMs).poolRemainingMinor} />
+          {t('dashboard.left')}{' '}
+          <span class="money">
+            {symbol}
+            <TickingNumber class="tank__figure" field="pool-remaining" now={now} compute={(nowMs) => liveAt(model, sessionId, nowMs).poolRemainingMinor} />
+          </span>
         </span>
       </div>
       <span class="num accent tank__percent">

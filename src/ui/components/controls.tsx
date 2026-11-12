@@ -4,19 +4,24 @@ import type { ComponentChildren } from 'preact';
 import { t } from '../../i18n';
 
 export interface ButtonProps {
-  variant?: 'primary' | 'ghost' | 'plain';
+  variant?: 'primary' | 'ghost' | 'plain' | 'danger';
   small?: boolean;
   disabled?: boolean;
   type?: 'button' | 'submit';
   id?: string;
+  /** Toggle buttons: whether the toggle is on (`aria-pressed`). */
+  pressed?: boolean;
+  ariaLabel?: string;
   onClick?: () => void;
   children: ComponentChildren;
 }
 
-export function Button({ variant = 'plain', small, disabled, type = 'button', id, onClick, children }: ButtonProps) {
-  const cls = ['btn', variant === 'primary' ? 'btn--primary' : variant === 'ghost' ? 'btn--ghost' : '', small ? 'btn--small' : ''].filter(Boolean).join(' ');
+const VARIANT_CLASS = { primary: 'btn--primary', ghost: 'btn--ghost', danger: 'btn--danger', plain: '' } as const;
+
+export function Button({ variant = 'plain', small, disabled, type = 'button', id, pressed, ariaLabel, onClick, children }: ButtonProps) {
+  const cls = ['btn', VARIANT_CLASS[variant], small ? 'btn--small' : ''].filter(Boolean).join(' ');
   return (
-    <button class={cls} type={type} id={id} disabled={disabled} onClick={onClick}>
+    <button class={cls} type={type} id={id} disabled={disabled} aria-pressed={pressed} aria-label={ariaLabel} onClick={onClick}>
       {children}
     </button>
   );
@@ -101,10 +106,11 @@ export interface TextInputProps {
   invalid?: boolean;
   describedBy?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 /** A bare input (no wrapper) with an accessible name. */
-export function TextInput({ id, value, onInput, label, placeholder, inputMode, maxLength, invalid, describedBy, className }: TextInputProps) {
+export function TextInput({ id, value, onInput, label, placeholder, inputMode, maxLength, invalid, describedBy, className, disabled }: TextInputProps) {
   return (
     <input
       id={id}
@@ -114,6 +120,7 @@ export function TextInput({ id, value, onInput, label, placeholder, inputMode, m
       placeholder={placeholder}
       inputMode={inputMode}
       maxLength={maxLength}
+      disabled={disabled}
       aria-label={label}
       aria-invalid={invalid ? 'true' : undefined}
       aria-describedby={describedBy}

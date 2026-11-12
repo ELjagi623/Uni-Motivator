@@ -52,3 +52,23 @@ export function pickEquivalent(
   const { count, fraction } = countOf(amount, currency, chosen.item, rates);
   return { item: chosen.item, count, fraction, belowCheapest: false };
 }
+
+/** The item the skip calculator always uses: a box of three-dish rice, the everyday yardstick ("≈ 88 boxes"). */
+export const SKIP_REFERENCE_ID = 'sanfan';
+
+export interface SkipCalculation {
+  /** What skipping throws away: the session's cost. */
+  costMinor: number;
+  item: PriceItem;
+  /** Whole boxes the money would have bought. */
+  count: number;
+  fraction: number;
+}
+
+/** "Skipping this class throws away HK$3,980, about 88 boxes of three-dish rice." Null when the pack has no such item. */
+export function skipCalculation(costMinor: number, currency: CurrencyCode, pack: readonly PriceItem[] = PRICE_PACK_HK, rates?: RateTable): SkipCalculation | null {
+  const item = pack.find((p) => p.id === SKIP_REFERENCE_ID) ?? pack[0];
+  if (!item) return null;
+  const { count, fraction } = countOf(costMinor, currency, item, rates);
+  return { costMinor, item, count, fraction };
+}

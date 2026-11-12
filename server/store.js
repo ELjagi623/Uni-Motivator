@@ -229,9 +229,66 @@ export function createStore({ dataDir, now = Date.now, fs = nodeFs, backupsKept 
     return { id, created };
   }
 
-  /** @returns {boolean} whether a calendar was removed */
+  /** Store a calendar under a caller-chosen id (subscriptions keep one id for good), replacing the old text atomically. */
+  function writeCalendar(id, text) {
+    if (!isCalendarId(id)) throw new StoreError('bad_id', 'calendar id contains characters that are not allowed');
+    if (typeof text !== 'string') throw new StoreError('bad_calendar', 'calendar text must be a string');
+    fs.mkdirSync(calendarsDir, { recursive: true });
+    atomicWriteFileSync(path.join(calendarsDir, `${id}.ics`), text, fs);
+  }
+
+  const subscriptionsFile = path.join(root, 'subscriptions.json');
+
+  /**
+   * Subscription links, kept in data/subscriptions.json: [{id, url, addedMs, lastSyncMs, lastError}] where `id` is the id of the
+   * calendar the link feeds. The links are private: only calendar-sync.js reads them, the API never returns them.
+   * An unreadable file is set aside (subscriptions.corrupt.json) instead of being overwritten.
+   */
+  function readSubscriptions() {
+    let text;
+    try {
+      text = fs.readFileSync(subscriptionsFile, 'utf8');
+    } catch (err) {
+      if (err && err.code === 'ENOENT') return [];
+      throw err;
+    }
+    try {
+      const doc = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+      if (isPlainObject(doc) && Array.isArray(doc.subscriptions)) {
+        return doc.subscriptions.filter((s) => isPlainObject(s) && isCalendarId(s.id) && typeof s.url === 'string');
+      }
+    } catch {
+      /* fall through */
+    }
+    try {
+      fs.renameSync(subscriptionsFile, path.join(root, 'subscriptions.corrupt.json'));
+    } catch {
+      /* best effort */
+    }
+    return [];
+  }
+
+  function writeSubscriptions(list) {
+    fs.mkdirSync(root, { recursive: true });
+    atomicWriteFileSync(subscriptionsFile, `${JSON.stringify({ schemaVersion: SCHEMA_VERSION, subscriptions: list }, null, 2)}
+`, fs);
+  }
+
+  /** The public view of the subscriptions: which calendars are fed by a link, and how the last sync went (no link). */
+  function publicSubscriptions() {
+    return readSubscriptions().map((s) => ({
+      calendarId: s.id,
+      addedMs: Number.isFinite(s.addedMs) ? s.addedMs : null,
+      lastSyncMs: Number.isFinite(s.lastSyncMs) ? s.lastSyncMs : null,
+      lastError: typeof s.lastError === 'string' ? s.lastError : null,
+    }));
+  }
+
+  /** @returns {boolean} whether a calendar was removed (a subscription feeding it is dropped as well) */
   function deleteCalendar(id) {
     if (!isCalendarId(id)) throw new StoreError('bad_id', 'calendar id contains characters that are not allowed');
+    const subs = readSubscriptions();
+    if (subs.some((s) => s.id === id)) writeSubscriptions(subs.filter((s) => s.id !== id));
     const file = path.join(calendarsDir, `${id}.ics`);
     if (!fs.existsSync(file)) return false;
     fs.rmSync(file, { force: true });
@@ -244,8 +301,9 @@ export function createStore({ dataDir, now = Date.now, fs = nodeFs, backupsKept 
       marks: readDoc('marks'),
       slacks: readDoc('slacks'),
       calendars: readCalendars(),
+      subscriptions: publicSubscriptions(),
     };
   }
 
-  return { dataDir: root, readDoc, writeDoc, readAll, readCalendars, addCalendar, deleteCalendar, backupFiles };
+  return { dataDir: root, readDoc, writeDoc, readAll, readCalendars, addCalendar, writeCalendar, deleteCalendar, readSubscriptions, writeSubscriptions, backupFiles };
 }

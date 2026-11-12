@@ -15,7 +15,7 @@ import { sessionOrdinal, type Ordinal } from '../core/ordinal';
 import { getCurrency, formatMinor, type CurrencyCode } from '../core/money';
 import { slackAmountMinor, slackSeconds } from '../core/slack';
 import { getStatus, type StatusKind } from '../core/status';
-import type { Course, MarkMap, MarkStatus, Session, SlackRecord } from '../core/types';
+import type { AcademicConfig, Course, MarkMap, MarkStatus, Session, SlackRecord } from '../core/types';
 import { getLocale, t } from '../i18n';
 import type { DocValue } from './data';
 
@@ -127,6 +127,8 @@ export interface DashboardInputs {
   marks: MarkMap;
   slacks: readonly SlackRecord[];
   currency: CurrencyCode;
+  /** The academic-year settings; when present, sessions of finished academic years are read-only. */
+  academic?: AcademicConfig;
 }
 
 // ------------------------------------------------------------------ small formatting helpers
@@ -167,7 +169,7 @@ export function rateText(ratePerSecMinor: number, currency: CurrencyCode): strin
   return `${getCurrency(currency).symbol}${(ratePerSecMinor / 100).toFixed(4)}`;
 }
 
-function weekdayText(ms: number): string {
+export function weekdayText(ms: number): string {
   return new Intl.DateTimeFormat(getLocale(), { weekday: 'short' }).format(new Date(ms));
 }
 

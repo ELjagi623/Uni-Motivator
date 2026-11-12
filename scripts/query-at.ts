@@ -9,17 +9,29 @@
 //                browser's zone, so pass the same zone the browser reports when you compare day-based states.
 //   --data-dir   a data folder (config.json, marks.json, slacks.json, calendars/*.ics). Default: $TT_DATA_DIR or ./data
 //
+// `marks` is core's summary of the user's marks (停课 / 翘课) over every pool for the sessions that had ended by `--now`;
+// its `formatted` keys match the `data-field` attributes on the session list page (cancelled-amount, skipped-amount,
+// attendance-rate).
+//
+// Several academic years: `status`, `session`, `pool`, `totals` and `slackToday` describe the focus year only (like the main
+// screen: the current year, else the nearest upcoming one, else the latest archive); `marks` covers every year (like the
+// session list); `years` lists every year with its role and `history` is the per-year cost / hours / slacking (like the
+// statistics page). `secondary` is the second-currency text of the session / pool figures when a second currency is set.
+//
 // Field names under `formatted` match the `data-field` attributes on the dashboard, with the same two-decimal text.
 // Local-time notions (today, days until term) use this computer's time zone, like the browser does.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { billingStateAt, buildPools, findPoolOfSession, getPoolSession, poolStateAt, sessionStateAt, type Pool } from '../src/core/billing';
+import { billingStateAt, buildPools, findPoolOfSession, getPoolSession, poolStateAt, sessionStateAt, summarizeMarks, type Pool } from '../src/core/billing';
 import { assignCourses, sessionsOfCourses } from '../src/core/courses';
 import { expandIcs, mergeSessions } from '../src/core/ics/expand';
 import { sessionOrdinal } from '../src/core/ordinal';
-import { formatAmountMinor, formatMinor, getCurrency, isCurrencyCode, type CurrencyCode } from '../src/core/money';
+import { convert, formatAmountMinor, formatMinor, getCurrency, isCurrencyCode, type CurrencyCode, type RateTable } from '../src/core/money';
+import { historySummary } from '../src/core/stats';
+import { academicYearsOf, focusYearOf } from '../src/core/years';
+import { academicYearOf } from '../src/core/academic';
 import { slackAmountMinor, slackSeconds } from '../src/core/slack';
 import { getStatus } from '../src/core/status';
 import type { AcademicConfig, Course, MarkMap, Session, SlackRecord, TuitionConfig } from '../src/core/types';
@@ -95,11 +107,19 @@ function main(): void {
   const billable = sessionsOfCourses(sessions, courses).map((s) => ({ ...s, courseId: assigned.get(s.id) as string }));
   const creditMap: Record<string, number | null> = {};
   for (const c of courses) creditMap[c.id] = c.credits;
-  const pools: Pool[] = billable.length
-    ? buildPools(billable, { academic: config.academic as AcademicConfig, mode: (config.billingMode as 'duration' | 'credit' | undefined) ?? 'duration', tuition: (config.tuition ?? { defaultMinor: null }) as TuitionConfig, credits: creditMap })
+  const academic = config.academic as AcademicConfig;
+  const allPools: Pool[] = billable.length
+    ? buildPools(billable, { academic, mode: (config.billingMode as 'duration' | 'credit' | undefined) ?? 'duration', tuition: (config.tuition ?? { defaultMinor: null }) as TuitionConfig, credits: creditMap })
     : [];
 
-  const status = getStatus(nowMs, billable, marks);
+  // The focus academic year (core years.ts): with more than one year the main-screen figures use that year only.
+  const years = academicYearsOf(billable, academic, nowMs);
+  const focusYear = focusYearOf(years);
+  const scoped = years.length > 1 && focusYear !== null;
+  const focusBillable = scoped ? billable.filter((s) => academicYearOf(s.startMs, academic) === focusYear) : billable;
+  const pools: Pool[] = scoped ? allPools.filter((p) => p.year === focusYear) : allPools;
+
+  const status = getStatus(nowMs, focusBillable, marks);
   const money = (minor: number): string => formatAmountMinor(minor);
   const symbol = getCurrency(currency).symbol;
   const iso = (ms: number): string => new Date(ms).toISOString();
@@ -152,7 +172,7 @@ function main(): void {
   const ps = tankPool ? poolStateAt(tankPool, nowMs) : null;
   const all = billingStateAt(pools, nowMs);
 
-  const sessionById = new Map(billable.map((s) => [s.id, s]));
+  const sessionById = new Map(focusBillable.map((s) => [s.id, s]));
   const todayIds = new Set(status.today.map((s) => s.id));
   let slackSec = 0;
   let slackMinor = 0;
@@ -165,6 +185,7 @@ function main(): void {
     slackMinor += slackAmountMinor(r, s, rate, nowMs);
   }
 
+  const markSummary = summarizeMarks(allPools, marks, { asOfMs: nowMs }).total;
   const daysUntilTerm = status.kind === 'before-term' && status.next ? Math.round((midnight(status.next.startMs) - midnight(nowMs)) / 86_400_000) : null;
 
   const out = {
@@ -194,6 +215,34 @@ function main(): void {
         }
       : null,
     totals: { tuitionMinor: all.tuitionMinor, consumedMinor: all.consumedMinor, remainingMinor: all.remainingMinor },
+    marks: {
+      endedSessions: markSummary.sessionCount,
+      cancelledCount: markSummary.cancelledCount,
+      skippedCount: markSummary.skippedCount,
+      attendedCount: markSummary.attendedCount,
+      cancelledMinor: markSummary.cancelledMinor,
+      skippedMinor: markSummary.skippedMinor,
+      attendanceRate: markSummary.attendanceRate,
+      formatted: {
+        'cancelled-amount': formatMinor(markSummary.cancelledMinor, currency),
+        'skipped-amount': formatMinor(markSummary.skippedMinor, currency),
+        'attendance-rate': markSummary.attendanceRate === null ? '—' : `${Math.round(markSummary.attendanceRate * 100)}%`,
+      },
+    },
+    focusYear,
+    years: years.map((y) => ({ year: y.year, role: y.role, sessionCount: y.sessionCount })),
+    history: (() => {
+      const h = historySummary({ sessions: billable, pools: allPools, courses, marks, slacks: records, nowMs }, academic);
+      return { years: h.years.map((y) => ({ year: y.year, costMinor: y.costMinor, sessionCount: y.sessionCount, slackMinor: y.slackMinor })), totalCostMinor: h.total.costMinor, totalSessionCount: h.total.sessionCount };
+    })(),
+    secondary: (() => {
+      const code = config.secondaryCurrency;
+      if (!isCurrencyCode(code) || code === currency) return null;
+      const rates: RateTable = {};
+      if (config.rates && typeof config.rates === 'object') for (const [k, v] of Object.entries(config.rates as Record<string, unknown>)) if (isCurrencyCode(k) && typeof v === 'number' && v > 0) rates[k] = v;
+      const approx = (minor: number): string => `≈ ${formatMinor(Math.round(convert(minor, currency, code, rates)), code)}`;
+      return { currency: code, 'session-consumed-second': current ? approx(current.consumedMinor) : null, 'pool-tuition-second': ps ? approx(ps.tuitionMinor) : null };
+    })(),
     todaySessionCount: status.today.length,
     slackToday: { seconds: slackSec, amountMinor: slackMinor },
     daysUntilTerm,

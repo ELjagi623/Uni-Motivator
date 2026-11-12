@@ -38,6 +38,8 @@ export interface Clock {
   frozen: boolean;
   /** Fake time minus real time, in ms (0 when no fake time is in use). */
   offsetMs: number;
+  /** Move the fake time to `ms` (UTC). Only meaningful in development; keeps frozen clocks frozen. */
+  setFake(ms: number): void;
   start(): void;
   stop(): void;
 }
@@ -132,6 +134,11 @@ export function createClock(options: ClockOptions = {}): Clock {
     },
     get offsetMs() {
       return offsetMs;
+    },
+    setFake(ms) {
+      offsetMs = ms - realNow();
+      if (frozenAt !== null) frozenAt = ms;
+      update();
     },
     start() {
       if (running) return;

@@ -416,6 +416,44 @@
   color: var(--color-danger);
 }
 
+/* ------------------------------------------------------------------ privacy mode (key B)
+   Every element that shows an amount carries the `money` class; with data-privacy="on" on the root element they are blurred
+   so the numbers cannot be read (the blur is at least 8px and grows with the font size). Focus lifts it, so a tuition
+   field can still be edited. */
+.money {
+  transition: filter var(--dur-base) var(--ease);
+}
+:root[data-privacy='on'] .money {
+  filter: blur(max(8px, 0.5em));
+  user-select: none;
+  transition: none; /* hiding is instant; only showing again fades */
+}
+:root[data-privacy='on'] .money:focus,
+:root[data-privacy='on'] .money:focus-within {
+  filter: none;
+  user-select: auto;
+}
+.shell-nav__privacy {
+  margin-left: auto;
+  cursor: pointer;
+  gap: var(--space-2);
+}
+.shell-nav__privacy[aria-pressed='true'] {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border-color: transparent;
+}
+.kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 2px 5px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  font: var(--fw-bold) var(--fs-label) / 1 var(--font-label);
+  text-align: center;
+  opacity: 0.8;
+}
+
 /* ------------------------------------------------------------------ course recognition */
 .course-list {
   display: flex;

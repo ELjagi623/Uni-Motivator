@@ -20,6 +20,8 @@ export function startRouter(): void {
   listening = true;
   window.addEventListener('hashchange', () => {
     route.value = parseHash(location.hash);
+    // A new page starts at the top (the old page's scroll position means nothing on it).
+    if (typeof window.scrollTo === 'function') window.scrollTo(0, 0);
   });
 }
 

@@ -1,6 +1,6 @@
 // Shape of the `config` document and the defaults used before onboarding is finished.
 
-import type { CurrencyCode } from '../core/money';
+import type { CurrencyCode, RateTable } from '../core/money';
 import type { AcademicConfig, BillingMode, Course, TuitionConfig } from '../core/types';
 import { getRegionPreset, type RegionPreset } from '../data/regions';
 
@@ -9,6 +9,20 @@ export interface CalendarSource {
   /** File name the user imported (display only). */
   name: string;
 }
+
+/** Class reminders (browser notifications while the page is open). */
+export interface ReminderConfig {
+  enabled: boolean;
+  /** Minutes before a class starts; 0 = no "about to start" reminder (the "class is over" one stays). */
+  leadMinutes: number;
+}
+
+export const DEFAULT_REMINDERS: ReminderConfig = { enabled: false, leadMinutes: 5 };
+
+/** "system" follows the operating system's light / dark setting; the other two force one of the themes. */
+export type ThemeChoice = 'system' | 'light' | 'dark';
+export const THEME_CHOICES: readonly ThemeChoice[] = ['system', 'light', 'dark'];
+export const DEFAULT_THEME: ThemeChoice = 'system';
 
 export interface AppConfig {
   schemaVersion: number;
@@ -23,6 +37,16 @@ export interface AppConfig {
   tuition?: TuitionConfig;
   courses?: Course[];
   calendars?: CalendarSource[];
+  reminders?: ReminderConfig;
+  /** Light / dark theme choice (default: follow the system). */
+  theme?: ThemeChoice;
+  /**
+   * A second currency shown as small text under the big numbers ("≈ ¥2,450"). Absent / null = off. The exchange rates
+   * are the built-in table plus the user's overrides in `rates` (never fetched from the network).
+   */
+  secondaryCurrency?: CurrencyCode | null;
+  /** The user's overrides of the built-in rate table: USD value of one major unit of the currency (core's RateTable). */
+  rates?: RateTable;
 }
 
 export const DEFAULT_CURRENCY: CurrencyCode = 'HKD';

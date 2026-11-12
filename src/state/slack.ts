@@ -185,6 +185,8 @@ export function startSlackWatcher(): () => void {
 
 /** "已经浪费 3 盒三餸饭" style hint for the amount wasted so far (empty when there is no price pack). */
 export function equivalentHint(amountMinor: number, cur: CurrencyCode): string {
+  // Nothing wasted yet: "a bit more and you could buy ..." would contradict that.
+  if (amountMinor <= 0) return t('slack.equivalentZero');
   const e = equivalentOf(amountMinor, cur);
   if (!e) return '';
   return e.count >= 1
@@ -213,7 +215,7 @@ export function settlementTexts(ctx: SlackContext, nowMs: number): SettlementTex
   return {
     amountMinor: s.amountMinor,
     durationLabel: minSecText(s.seconds),
-    equivalentLabel: s.equivalent ? `${s.equivalent.fractionText} ${s.equivalent.unit}${s.equivalent.name}` : '',
+    equivalentLabel: s.amountMinor > 0 && s.equivalent ? `${s.equivalent.fractionText} ${s.equivalent.unit}${s.equivalent.name}` : '',
     sessionTotalMinutes: Math.floor(s.sessionTotalSeconds / 60),
   };
 }

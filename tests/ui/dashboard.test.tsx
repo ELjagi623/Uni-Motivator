@@ -247,6 +247,19 @@ describe('slacking lifecycle', () => {
   });
 });
 
+describe('slacking at zero', () => {
+  it('with nothing wasted yet the equivalent line does not say "a bit more and you could buy ..." and the settlement has no equivalent row', async () => {
+    await boot({ nowMs: NOWS.inClass });
+    await click('#slack-btn');
+    expect(field('slack-amount')).toBe('0.00');
+    expect(field('slack-equivalent')).toBe('才刚开始，现在回去听课，一分钱都还没浪费');
+    expect(field('slack-equivalent')).not.toContain('再浪费一点');
+    await click('#continue-btn');
+    expect(field('settle-amount')).toBe('0.00');
+    expect($('[data-field="settle-equivalent"]')).toBeNull();
+  });
+});
+
 describe('tab title, screen readers, demo mode', () => {
   it('shows "HK$2,287 · MFIN7002" in class and "🐟 HK$x.xx" while slacking, and the app name otherwise', async () => {
     await boot({ nowMs: NOWS.inClass });

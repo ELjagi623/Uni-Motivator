@@ -7,11 +7,18 @@
 //   POST   /api/calendars     -> body: the .ics text (UTF-8); 201 { id } | 400 when it is not an iCalendar file
 //   DELETE /api/calendars/:id -> 200 { ok: true } | 400 unsafe id | 404 unknown id
 //
-// Calendar sync (subscription links) and export / import endpoints belong to later phases.
+//   POST /api/subscriptions   -> body { url }; downloads the link first; 201 { calendarId, lastSyncMs } (the link is never echoed)
+//   POST /api/calendars/:id/sync -> re-download a subscribed calendar; 200 { calendarId, lastSyncMs, changed }
+//                                   404 when the calendar has no subscription, 400 bad link, 502 { error: <code> } when the
+//                                   download failed (the stored calendar is untouched)
+//   GET /api/data also lists `subscriptions`: [{calendarId, addedMs, lastSyncMs, lastError}] - never the links.
+//
+// Export / import endpoints belong to a later phase.
 
 import { StoreError, isCalendarId, isDocName } from './store.js';
 import { HttpError, assertRequestAllowed, readBody } from './security.js';
 import { serveStatic } from './static.js';
+import { SyncError } from './calendar-sync.js';
 
 function sendJson(res, status, payload, extraHeaders = {}) {
   const body = Buffer.from(JSON.stringify(payload), 'utf8');
@@ -47,7 +54,7 @@ function parseJsonBody(buffer) {
   return value;
 }
 
-export function createHandler({ store, getPort, appDir, version }) {
+export function createHandler({ store, getPort, appDir, version, sync }) {
   async function handleApi(req, res) {
     const [, ...rest] = apiSegments(req.url);
     let decoded;
@@ -92,7 +99,23 @@ export function createHandler({ store, getPort, appDir, version }) {
       return;
     }
 
+    if (decoded.length === 1 && decoded[0] === 'subscriptions') {
+      if (method !== 'POST') throw new HttpError(405, 'method_not_allowed');
+      const payload = parseJsonBody(await readBody(req));
+      if (payload === null || typeof payload !== 'object' || typeof payload.url !== 'string') throw new HttpError(400, 'bad_request', 'body must be an object { url }');
+      const result = await sync.addSubscription(payload.url);
+      sendJson(res, 201, result);
+      return;
+    }
+
     if (decoded[0] === 'calendars') {
+      if (decoded.length === 3 && decoded[2] === 'sync') {
+        if (method !== 'POST') throw new HttpError(405, 'method_not_allowed');
+        if (!isCalendarId(decoded[1])) throw new HttpError(400, 'bad_id', 'calendar id contains characters that are not allowed');
+        await readBody(req);
+        sendJson(res, 200, await sync.syncCalendar(decoded[1]));
+        return;
+      }
       if (decoded.length === 1) {
         if (method !== 'POST') throw new HttpError(405, 'method_not_allowed');
         const text = (await readBody(req)).toString('utf8').replace(/^﻿/, '');
@@ -127,6 +150,8 @@ export function createHandler({ store, getPort, appDir, version }) {
       if (err instanceof HttpError) {
         const headers = err.status === 413 ? { Connection: 'close' } : {};
         sendJson(res, err.status, { error: err.code, message: err.message }, headers);
+      } else if (err instanceof SyncError) {
+        sendJson(res, err.status, { error: err.code, message: err.message });
       } else if (err instanceof StoreError) {
         const status = err.code === 'corrupt' ? 500 : 400;
         sendJson(res, status, { error: err.code, message: err.message });
