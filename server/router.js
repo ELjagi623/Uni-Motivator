@@ -4,10 +4,12 @@
 //   GET  /api/data            -> { config, marks, slacks, calendars }
 //   PUT  /api/docs/:name      -> body { rev, doc }; name is one of config | marks | slacks
 //                                200 { rev } | 409 { error, rev, doc } when rev is stale
+//   POST   /api/calendars     -> body: the .ics text (UTF-8); 201 { id } | 400 when it is not an iCalendar file
+//   DELETE /api/calendars/:id -> 200 { ok: true } | 400 unsafe id | 404 unknown id
 //
-// Calendar upload / sync / export endpoints belong to later phases.
+// Calendar sync (subscription links) and export / import endpoints belong to later phases.
 
-import { StoreError, isDocName } from './store.js';
+import { StoreError, isCalendarId, isDocName } from './store.js';
 import { HttpError, assertRequestAllowed, readBody } from './security.js';
 import { serveStatic } from './static.js';
 
@@ -88,6 +90,24 @@ export function createHandler({ store, getPort, appDir, version }) {
         sendJson(res, 409, { error: 'rev_conflict', rev: result.current.rev, doc: result.current });
       }
       return;
+    }
+
+    if (decoded[0] === 'calendars') {
+      if (decoded.length === 1) {
+        if (method !== 'POST') throw new HttpError(405, 'method_not_allowed');
+        const text = (await readBody(req)).toString('utf8').replace(/^﻿/, '');
+        if (!/^\s*BEGIN:VCALENDAR/i.test(text)) throw new HttpError(400, 'not_icalendar', 'body must be iCalendar text starting with BEGIN:VCALENDAR');
+        const { id } = store.addCalendar(text);
+        sendJson(res, 201, { id });
+        return;
+      }
+      if (decoded.length === 2) {
+        if (method !== 'DELETE') throw new HttpError(405, 'method_not_allowed');
+        if (!isCalendarId(decoded[1])) throw new HttpError(400, 'bad_id', 'calendar id contains characters that are not allowed');
+        if (!store.deleteCalendar(decoded[1])) throw new HttpError(404, 'not_found', 'no such calendar');
+        sendJson(res, 200, { ok: true });
+        return;
+      }
     }
 
     throw new HttpError(404, 'not_found', 'no such API endpoint');

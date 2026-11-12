@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Design tokens preview</title>
+    <!-- Dev server only: this file is not an input of `vite build`, so it never ends up in app/. -->
+    <link rel="stylesheet" href="/src/styles/tokens.css" />
+    <link rel="stylesheet" href="/src/styles/fonts.css" />
+    <link rel="stylesheet" href="/src/styles/base.css" />
+    <style>
+      main { max-width: 960px; margin: 0 auto; padding: var(--space-5) var(--space-4) var(--space-8); }
+      header { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; justify-content: space-between; margin-bottom: var(--space-5); }
+      h1 { font-size: var(--fs-h1); font-family: var(--font-number); font-weight: var(--fw-heavy); }
+      h2 { font-size: var(--fs-h2); margin: var(--space-6) 0 var(--space-3); }
+      .toggle { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-pill); overflow: hidden; background: var(--color-surface); }
+      .toggle button { border: 0; background: transparent; padding: var(--space-2) var(--space-4); cursor: pointer; font-size: var(--fs-small); }
+      .toggle button[aria-pressed='true'] { background: var(--color-tank-fill); color: var(--color-surface); }
+      .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: var(--space-5); }
+      .hero { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); }
+      .hero .cur { font-family: var(--font-number); font-weight: var(--fw-heavy); font-size: var(--fs-h1); color: var(--color-accent); }
+      .hero .num { font-size: var(--fs-display); line-height: 1.1; }
+      .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-3); }
+      .swatch { border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; background: var(--color-surface); }
+      .swatch .chip { height: 56px; border-bottom: 1px solid var(--color-border); }
+      .swatch .meta { padding: var(--space-2) var(--space-3); font-size: var(--fs-small); }
+      .swatch code { display: block; font-size: var(--fs-label); color: var(--color-text-muted); word-break: break-all; }
+      .slack { height: 96px; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--color-slack-from), var(--color-slack-to)); color: var(--color-on-slack); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+      .slack .orb { position: absolute; width: 64px; height: 64px; border-radius: var(--radius-pill); background: var(--color-slack-orb); left: 12%; top: 20%; }
+      .shadows { display: flex; flex-wrap: wrap; gap: var(--space-5); }
+      .shadows div { width: 96px; height: 64px; border-radius: var(--radius-md); background: var(--color-surface); display: flex; align-items: center; justify-content: center; font-size: var(--fs-small); }
+      .radii { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+      .radii div { width: 72px; height: 48px; background: var(--color-surface-2); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center; font-size: var(--fs-small); }
+      .space { display: flex; align-items: flex-end; gap: var(--space-3); }
+      .space div { background: var(--color-tank-fill); width: var(--space-4); }
+      .danger { color: var(--color-danger); font-weight: var(--fw-bold); }
+      #font-check { font-family: var(--font-number); font-weight: var(--fw-bold); }
+      table { border-collapse: collapse; }
+      td { padding: var(--space-1) var(--space-3) var(--space-1) 0; font-size: var(--fs-small); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Design tokens</h1>
+        <div class="toggle" role="group" aria-label="Theme">
+          <button type="button" data-mode="system" aria-pressed="true">跟随系统</button>
+          <button type="button" data-mode="light" aria-pressed="false">日间</button>
+          <button type="button" data-mode="dark" aria-pressed="false">夜间</button>
+        </div>
+      </header>
+
+      <section class="card" aria-label="Hero number">
+        <p class="label">本节已消耗</p>
+        <div class="hero"><span class="cur">HK$</span><span class="num" id="big-number">3,980.00</span></div>
+        <p style="color: var(--color-text-muted)">学费每秒都在流走 · Tuition ticks every second 0123456789</p>
+        <p><span class="danger">翘课</span> · <span class="label">Label text</span></p>
+      </section>
+
+      <h2>Fonts</h2>
+      <div class="card">
+        <p id="font-check">checking…</p>
+        <table>
+          <tr><td class="label">Manrope 800</td><td class="num" style="font-size: var(--fs-h1)">$ 1,234,567.89</td></tr>
+          <tr><td class="label">Manrope 700</td><td style="font-family: var(--font-number); font-weight: var(--fw-bold); font-size: var(--fs-h2)">$ 1,234,567.89</td></tr>
+          <tr><td class="label">Inter 400</td><td>The quick brown fox jumps over the lazy dog</td></tr>
+          <tr><td class="label">Inter 700</td><td style="font-weight: var(--fw-bold)">The quick brown fox jumps over the lazy dog</td></tr>
+          <tr><td class="label">中文（系统字体）</td><td>学费计价器：上课中、课间、今天没课</td></tr>
+        </table>
+      </div>
+
+      <h2>Colours (<span id="theme-name">system</span>)</h2>
+      <div class="swatches" id="swatches"></div>
+
+      <h2>Slack gradient</h2>
+      <div class="slack"><span class="orb"></span><span class="num" style="color: var(--color-on-slack)">HK$ 3.51</span></div>
+
+      <h2>Shadows, radii, spacing</h2>
+      <div class="shadows">
+        <div style="box-shadow: var(--shadow-sm)">sm</div>
+        <div style="box-shadow: var(--shadow-md)">md</div>
+        <div style="box-shadow: var(--shadow-lg)">lg</div>
+      </div>
+      <div class="radii" style="margin-top: var(--space-5)">
+        <div style="border-radius: var(--radius-sm)">sm</div>
+        <div style="border-radius: var(--radius-md)">md</div>
+        <div style="border-radius: var(--radius-lg)">lg</div>
+        <div style="border-radius: var(--radius-pill)">pill</div>
+      </div>
+      <div class="space" style="margin-top: var(--space-5)" id="space"></div>
+    </main>
+
+    <script>
+      var COLORS = ['--color-bg', '--color-surface', '--color-surface-2', '--color-border', '--color-text', '--color-text-muted', '--color-number', '--color-accent', '--color-tank-fill', '--color-focus', '--color-slack-from', '--color-slack-to', '--color-slack-orb', '--color-on-slack', '--color-danger'];
+      var root = document.documentElement;
+
+      function renderSwatches() {
+        var cs = getComputedStyle(root);
+        var html = '';
+        COLORS.forEach(function (name) {
+          html += '<div class="swatch"><div class="chip" style="background: var(' + name + ')"></div><div class="meta">' + name + '<code>' + cs.getPropertyValue(name).trim() + '</code></div></div>';
+        });
+        document.getElementById('swatches').innerHTML = html;
+      }
+
+      function renderSpace() {
+        var html = '';
+        for (var i = 1; i <= 8; i++) html += '<div style="height: var(--space-' + i + ')" title="--space-' + i + '"></div>';
+        document.getElementById('space').innerHTML = html;
+      }
+
+      function setMode(mode) {
+        if (mode === 'system') root.removeAttribute('data-theme');
+        else root.setAttribute('data-theme', mode);
+        document.querySelectorAll('.toggle button').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
+        });
+        var dark = mode === 'dark' || (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.getElementById('theme-name').textContent = mode + (mode === 'system' ? ' (now ' + (dark ? 'dark' : 'light') + ')' : '');
+        renderSwatches();
+      }
+
+      document.querySelectorAll('.toggle button').forEach(function (b) {
+        b.addEventListener('click', function () { setMode(b.dataset.mode); });
+      });
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+        if (!root.hasAttribute('data-theme')) setMode('system');
+      });
+
+      // Load the fonts explicitly (they are only fetched when text uses them) and report the result.
+      var specs = ['700 48px Manrope', '800 48px Manrope', '400 16px Inter', '700 16px Inter'];
+      Promise.all(specs.map(function (s) { return document.fonts.load(s, '0123456789 Abc'); })).then(function () {
+        var results = specs.map(function (s) { return s + ': ' + document.fonts.check(s); });
+        var all = specs.every(function (s) { return document.fonts.check(s); });
+        var el = document.getElementById('font-check');
+        el.textContent = 'document.fonts.check → ' + results.join(' | ');
+        el.dataset.ok = String(all);
+        window.__fontsOk = all;
+      });
+
+      renderSpace();
+      setMode('system');
+    </script>
+  </body>
+</html>

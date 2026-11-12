@@ -2,7 +2,7 @@
 //
 // Layout:
 //   data/<name>.json                         config | marks | slacks
-//   data/calendars/<id>.ics                  imported calendars (read-only here; written in a later phase)
+//   data/calendars/<id>.ics                  imported calendars (POST / DELETE /api/calendars)
 //   data/backups/YYYYMMDD-HHMMSS-mmm_<name>.json   copy of the previous file taken before every overwrite
 //
 // Writes are synchronous on purpose: read-check-write of one document can never interleave with
@@ -10,6 +10,7 @@
 
 import nodeFs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 export const DOC_NAMES = Object.freeze(['config', 'marks', 'slacks']);
 export const BACKUPS_KEPT = 20;
@@ -21,6 +22,13 @@ export class StoreError extends Error {
     this.name = 'StoreError';
     this.code = code;
   }
+}
+
+/** Calendar ids are `cal-` + 12 hex digits of the SHA-256 of the text; any other id must be safe as a file name. */
+export const CALENDAR_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+export function isCalendarId(id) {
+  return typeof id === 'string' && CALENDAR_ID_RE.test(id);
 }
 
 export function isDocName(name) {
@@ -204,6 +212,32 @@ export function createStore({ dataDir, now = Date.now, fs = nodeFs, backupsKept 
       .map((f) => ({ id: f.slice(0, -4), text: fs.readFileSync(path.join(calendarsDir, f), 'utf8') }));
   }
 
+  /**
+   * Store a calendar text as data/calendars/<id>.ics. The id derives from the content, so importing the same file
+   * twice is a no-op (same id) instead of a duplicate.
+   * @returns {{id: string, created: boolean}}
+   */
+  function addCalendar(text) {
+    if (typeof text !== 'string') throw new StoreError('bad_calendar', 'calendar text must be a string');
+    const id = `cal-${createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 12)}`;
+    const file = path.join(calendarsDir, `${id}.ics`);
+    const created = !fs.existsSync(file);
+    if (created) {
+      fs.mkdirSync(calendarsDir, { recursive: true });
+      atomicWriteFileSync(file, text, fs);
+    }
+    return { id, created };
+  }
+
+  /** @returns {boolean} whether a calendar was removed */
+  function deleteCalendar(id) {
+    if (!isCalendarId(id)) throw new StoreError('bad_id', 'calendar id contains characters that are not allowed');
+    const file = path.join(calendarsDir, `${id}.ics`);
+    if (!fs.existsSync(file)) return false;
+    fs.rmSync(file, { force: true });
+    return true;
+  }
+
   function readAll() {
     return {
       config: readDoc('config'),
@@ -213,5 +247,5 @@ export function createStore({ dataDir, now = Date.now, fs = nodeFs, backupsKept 
     };
   }
 
-  return { dataDir: root, readDoc, writeDoc, readAll, readCalendars, backupFiles };
+  return { dataDir: root, readDoc, writeDoc, readAll, readCalendars, addCalendar, deleteCalendar, backupFiles };
 }

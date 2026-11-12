@@ -1,0 +1,383 @@
+/* Dashboard, slacking page and settlement card. Tokens only (check:ui forbids hard-coded colours).
+   Motion: the only animations on the site are the ticking numbers (JS, text only), the floating light spots on the
+   slacking page (`tt-float`, CSS only) and the settlement card pop-in (`tt-pop`, once). */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.card.inset {
+  padding: 14px;
+  background: var(--color-surface-2);
+  box-shadow: none;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-2);
+  font: var(--fw-bold) var(--fs-small) / 1.4 var(--font-label);
+  color: var(--color-text);
+}
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+.dot.live {
+  background: var(--color-tank-fill);
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  font: var(--fw-bold) 12px / 1.6 var(--font-label);
+}
+.tag--cancel {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+/* ------------------------------------------------------------------ demo banner */
+.demo-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 960px;
+  margin: 0 auto var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-accent);
+  background: var(--color-surface);
+  font-size: var(--fs-small);
+}
+
+/* ------------------------------------------------------------------ dashboard layout */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+}
+.dash-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+}
+.dash-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6) 120px;
+  min-height: 420px;
+}
+.dash-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.dash-hero .hero-number {
+  font-size: clamp(48px, 12vw, var(--fs-display));
+  line-height: 1.05;
+}
+.dash-hero .hero-currency {
+  font-size: var(--fs-h1);
+}
+.dash-meta {
+  margin: 0;
+}
+.dash-meta .num {
+  font-size: var(--fs-body);
+}
+.overlap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dash-cards {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-4);
+}
+.dash-cards > .card {
+  flex: 1 1 0;
+}
+.tank-card {
+  gap: var(--space-3);
+}
+.tank {
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-2);
+  overflow: hidden;
+}
+.tank i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-tank-fill);
+}
+.tank__numbers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+.tank__figure {
+  font-size: 16px;
+}
+.tank__percent {
+  font-size: 18px;
+  color: var(--color-accent);
+}
+.carousel-card {
+  justify-content: space-between;
+}
+.carousel-text {
+  margin: 0;
+  font-size: 17px;
+  font-weight: var(--fw-bold);
+}
+.state-card {
+  gap: var(--space-3);
+}
+.state-number {
+  font-size: 44px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.term-figure {
+  font-size: 28px;
+}
+
+/* ------------------------------------------------------------------ timeline */
+.timeline-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.timeline {
+  position: relative;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  overflow: hidden;
+}
+.timeline b {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-tank-fill);
+  opacity: 0.28;
+}
+.timeline b.is-cancelled {
+  opacity: 0.12;
+  outline: 1px dashed var(--color-text-muted);
+}
+.timeline b.timeline__elapsed {
+  opacity: 1;
+}
+.timeline u {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-accent);
+  text-decoration: none;
+}
+.timeline__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-muted);
+  font-size: var(--fs-small);
+}
+
+/* ------------------------------------------------------------------ bottom button (fixed) */
+.dash-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-5) var(--space-4);
+  background: linear-gradient(to top, var(--color-bg) 55%, transparent);
+  pointer-events: none;
+}
+.dash-footer .btn {
+  pointer-events: auto;
+  min-height: 52px;
+  padding: 0 40px;
+  font-size: 17px;
+}
+
+/* ------------------------------------------------------------------ slacking page */
+.slack-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.slackbg {
+  background: linear-gradient(160deg, var(--color-slack-from), var(--color-slack-to));
+  color: var(--color-on-slack);
+}
+.slackbg .num {
+  color: var(--color-on-slack);
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--color-slack-orb);
+  filter: blur(2px);
+  animation: tt-float 9s var(--ease) infinite alternate;
+}
+.orb--1 {
+  width: 160px;
+  height: 160px;
+  left: 8%;
+  top: 12%;
+}
+.orb--2 {
+  width: 90px;
+  height: 90px;
+  right: 12%;
+  top: 38%;
+  animation-delay: -3s;
+}
+.orb--3 {
+  width: 220px;
+  height: 220px;
+  left: 34%;
+  bottom: -6%;
+  animation-delay: -6s;
+}
+@keyframes tt-float {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(24px, -36px, 0) scale(1.12);
+  }
+}
+.slack-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  text-align: center;
+}
+.slack-label {
+  color: var(--color-on-slack);
+  opacity: 0.85;
+}
+.slack-hero {
+  justify-content: center;
+}
+.slack-currency {
+  font-size: 28px;
+}
+.slack-number {
+  font-size: clamp(56px, 16vw, 88px);
+  line-height: 1;
+}
+.slack-pill {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.slack-continue {
+  margin-top: var(--space-4);
+  min-height: 52px;
+  padding: 0 40px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* ------------------------------------------------------------------ settlement card */
+.settle-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+}
+.settle-card {
+  width: min(420px, 100%);
+  gap: 14px;
+  padding: 28px;
+  box-shadow: var(--shadow-lg);
+  animation: tt-pop var(--dur-slow) var(--ease) both;
+}
+@keyframes tt-pop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.settle-currency {
+  font-size: 20px;
+}
+.settle-number {
+  font-size: 48px;
+  line-height: 1;
+}
+.settle-close {
+  margin-top: var(--space-2);
+}
+
+/* ------------------------------------------------------------------ narrow screens */
+@media (max-width: 720px) {
+  .dash-topbar {
+    padding: var(--space-3) var(--space-4);
+  }
+  .dash-main {
+    padding: var(--space-4) var(--space-4) 120px;
+    gap: var(--space-4);
+  }
+  .dash-cards {
+    flex-direction: column;
+  }
+  .state-number {
+    font-size: 36px;
+  }
+}

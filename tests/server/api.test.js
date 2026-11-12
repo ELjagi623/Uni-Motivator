@@ -169,3 +169,60 @@ describe('api: security', () => {
     assert.equal(s.server.address().address, '127.0.0.1');
   });
 });
+
+describe('api: calendars (POST /api/calendars, DELETE /api/calendars/:id)', () => {
+  const ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n';
+  const calendarsDir = () => path.join(s.dataDir, 'calendars');
+
+  it('stores the uploaded text under calendars/<id>.ics and returns the id; GET /api/data lists it', async () => {
+    const r = await s.request({ method: 'POST', path: '/api/calendars', write: true, body: ics, headers: { 'Content-Type': 'text/calendar' } });
+    assert.equal(r.status, 201);
+    assert.match(r.json.id, /^cal-[0-9a-f]{12}$/);
+    assert.equal(fs.readFileSync(path.join(calendarsDir(), `${r.json.id}.ics`), 'utf8'), ics);
+    const data = await s.request({ path: '/api/data' });
+    assert.deepEqual(data.json.calendars, [{ id: r.json.id, text: ics }]);
+    const d = await s.request({ method: 'DELETE', path: `/api/calendars/${r.json.id}`, write: true });
+    assert.equal(d.status, 200);
+    assert.equal(fs.existsSync(path.join(calendarsDir(), `${r.json.id}.ics`)), false);
+  });
+
+  it('is idempotent: the same text gives the same id and no second file', async () => {
+    const a = await s.request({ method: 'POST', path: '/api/calendars', write: true, body: ics });
+    const b = await s.request({ method: 'POST', path: '/api/calendars', write: true, body: ics });
+    assert.equal(a.json.id, b.json.id);
+    assert.equal(fs.readdirSync(calendarsDir()).length, 1);
+    await s.request({ method: 'DELETE', path: `/api/calendars/${a.json.id}`, write: true });
+  });
+
+  it('rejects text that is not an iCalendar file with 400 and writes nothing', async () => {
+    const r = await s.request({ method: 'POST', path: '/api/calendars', write: true, body: 'hello' });
+    assert.equal(r.status, 400);
+    assert.equal(fs.existsSync(calendarsDir()) && fs.readdirSync(calendarsDir()).length > 0, false);
+  });
+
+  it('refuses ids with path characters and answers 404 for an unknown safe id', async () => {
+    for (const id of ['..%2Fx', '..%5Cx', 'a%2Fb', '%2e%2e', 'x.ics', 'a%20b']) {
+      const r = await s.request({ method: 'DELETE', path: `/api/calendars/${id}`, write: true });
+      assert.ok(r.status === 400 || r.status === 404, `${id} -> ${r.status}`);
+    }
+    const dotdot = await s.request({ method: 'DELETE', path: '/api/calendars/..%2Fx', write: true });
+    assert.equal(dotdot.status, 400);
+    const unknown = await s.request({ method: 'DELETE', path: '/api/calendars/cal-nothere', write: true });
+    assert.equal(unknown.status, 404);
+  });
+
+  it('needs the X-Tuition-Ticker header and the right method', async () => {
+    const noHeader = await s.request({ method: 'POST', path: '/api/calendars', body: ics });
+    assert.equal(noHeader.status, 403);
+    const wrong = await s.request({ method: 'GET', path: '/api/calendars' });
+    assert.equal(wrong.status, 405);
+  });
+
+  it('accepts a body with a BOM and refuses one over 5 MB', async () => {
+    const withBom = await s.request({ method: 'POST', path: '/api/calendars', write: true, body: `\uFEFF${ics}` });
+    assert.equal(withBom.status, 201);
+    await s.request({ method: 'DELETE', path: `/api/calendars/${withBom.json.id}`, write: true });
+    const big = await s.request({ method: 'POST', path: '/api/calendars', write: true, body: `BEGIN:VCALENDAR\r\n${'x'.repeat(5 * 1024 * 1024 + 10)}` });
+    assert.equal(big.status, 413);
+  });
+});

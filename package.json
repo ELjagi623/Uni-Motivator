@@ -16,7 +16,10 @@
     "coverage": "vitest run --coverage",
     "acceptance": "node scripts/acceptance.mjs",
     "check:arch": "node scripts/check-arch.mjs",
-    "inspect": "tsx scripts/inspect-calendar.ts"
+    "inspect": "tsx scripts/inspect-calendar.ts",
+    "check:tokens": "node scripts/check-tokens.mjs",
+    "check:ui": "node scripts/check-ui.mjs",
+    "query": "tsx scripts/query-at.ts"
   },
   "dependencies": {
     "@preact/signals": "^2.11.4",
@@ -25,9 +28,12 @@
     "preact": "^11.2.0"
   },
   "devDependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/manrope": "^5.3.0",
     "@preact/preset-vite": "^2.10.6",
     "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^5.1.0",
+    "happy-dom": "^21.0.4",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
