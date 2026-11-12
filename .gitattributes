@@ -1,0 +1,8 @@
+* text=auto
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.sh text eol=lf
+*.command text eol=lf
+
+# launcher message files are shown with `type`; keep CRLF so the console does not staircase
+server/messages/*.txt text eol=crlf

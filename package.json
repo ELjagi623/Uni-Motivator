@@ -1,0 +1,36 @@
+{
+  "name": "tuition-ticker",
+  "version": "0.1.0",
+  "description": "学费计价器 (Tuition Ticker): a local, open-source class cost meter.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run && node --test --test-reporter=spec \"tests/server/*.test.js\" \"tests/scripts/*.test.js\"",
+    "coverage": "vitest run --coverage",
+    "acceptance": "node scripts/acceptance.mjs",
+    "check:arch": "node scripts/check-arch.mjs",
+    "inspect": "tsx scripts/inspect-calendar.ts"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.11.4",
+    "fflate": "^0.8.3",
+    "ical.js": "^2.2.1",
+    "preact": "^11.2.0"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "^5.1.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

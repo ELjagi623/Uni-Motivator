@@ -1,0 +1,2 @@
+[错误] Node.js 版本过低，学费计价器需要 Node.js 22 或更高版本（上面是当前版本）。
+请到 https://nodejs.org/ 下载安装最新的 LTS 版本，装好后重新双击 start.cmd。

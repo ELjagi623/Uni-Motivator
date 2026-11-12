@@ -1,0 +1,10 @@
+node_modules/
+app/
+data/
+test-data/private/
+*.log
+.DS_Store
+.pipeline/
+coverage/
+release/
+.vitest/
