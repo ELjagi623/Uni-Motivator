@@ -2,7 +2,7 @@
 // slacking figures, a weekly cost chart (hand-written SVG, no chart library) and the share card.
 // The page only displays what src/state/stats.ts (core's numbers, formatted) hands it.
 
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { t } from '../../i18n';
 import { generateShareCard, shareBusy, shareError, shareResult } from '../../state/share';
 import type { HighlightView, PeriodView } from '../../state/stats';
@@ -73,13 +73,13 @@ function CoursesChart() {
         {t('stats.courses')}
       </span>
       <svg class="chart chart--courses" viewBox={`0 0 ${chart.width} ${chart.height}`} role="img" aria-label={t('stats.coursesAria')} id="courses-chart">
-        {m.courses.map((c) => (
-          <g key={c.courseId} data-course-id={c.courseId}>
+        {m.courses.map((c, i) => (
+          <g key={c.courseId} data-course-id={c.courseId} style={{ '--i': i }}>
             <text class="chart__label" x="0" y={c.barY + 12}>
               {c.label}
             </text>
-            <rect class="chart__bar" x={chart.labelWidth} y={c.barY} width={c.barWidth} height="14" rx="4" />
-            <text class="chart__value money" x={chart.labelWidth + c.barWidth + 8} y={c.barY + 12}>
+            <rect class="chart__bar chart__grow-x" x={chart.labelWidth} y={c.barY} width={c.barWidth} height="14" rx="4" />
+            <text class="chart__value chart__fade money" x={chart.labelWidth + c.barWidth + 8} y={c.barY + 12}>
               {c.costText}
             </text>
           </g>
@@ -164,7 +164,6 @@ function HistoryCard() {
           ))}
         </tbody>
       </table>
-      <p class="muted small">{t('stats.history.note')}</p>
     </section>
   );
 }
@@ -214,26 +213,64 @@ function SlackCard() {
 
 function WeeklyChart() {
   const w = statsModel.value.weekly;
+  const [hover, setHover] = useState<number | null>(null);
+  const bar = hover !== null ? w.bars[hover] : undefined;
   return (
     <section class="card" id="weekly-card" aria-labelledby="weekly-title">
       <span class="label" id="weekly-title">
         {t('stats.weekly')}
       </span>
-      <svg class="chart chart--weekly" viewBox={`0 0 ${w.width} ${w.height}`} role="img" aria-label={t('stats.weeklyAria')} id="weekly-chart">
-        <line class="chart__axis" x1="0" x2={w.width} y1={w.baseline} y2={w.baseline} />
-        {w.bars.map((b) => (
-          <g key={b.key} data-week-start={b.key}>
-            <title>{b.title}</title>
-            <rect class="chart__bar" x={b.x} y={b.y} width={b.width} height={b.height} rx="3" />
-            {b.slackHeight > 0 ? <rect class="chart__slack" x={b.x} y={b.slackY} width={b.width} height={b.slackHeight} rx="3" /> : null}
-            {b.tick ? (
-              <text class="chart__tick" x={b.x} y={w.baseline + 18}>
-                {b.tick}
+      <div class="chart-wrap" onMouseLeave={() => setHover(null)}>
+        <svg class={`chart chart--weekly${bar ? ' is-hovering' : ''}`} viewBox={`0 0 ${w.width} ${w.height}`} role="img" aria-label={t('stats.weeklyAria')} id="weekly-chart">
+          {w.ticks.map((tick) => (
+            <g key={tick.y} class="chart__tick-row">
+              <line class="chart__grid" x1={w.plotLeft} x2={w.plotRight} y1={tick.y} y2={tick.y} />
+              <text class="chart__yvalue money" x={w.plotLeft - 8} y={tick.y + 4} text-anchor="end">
+                {tick.label}
               </text>
+            </g>
+          ))}
+          <line class="chart__axis" x1={w.plotLeft} x2={w.plotRight} y1={w.baseline} y2={w.baseline} />
+          {w.bars.map((b, i) => (
+            <g key={b.key} data-week-start={b.key} class={hover === i ? 'is-active' : undefined}>
+              <g class="chart__grow-y" style={{ '--i': i, transformOrigin: `0 ${w.baseline}px` }}>
+                <rect class="chart__bar" x={b.x} y={b.y} width={b.width} height={b.height} rx="3" />
+                {b.slackHeight > 0 ? <rect class="chart__slack" x={b.x} y={b.slackY} width={b.width} height={b.slackHeight} rx="3" /> : null}
+              </g>
+              {b.tick ? (
+                <text class="chart__tick" x={b.tickX} y={w.baseline + 18} text-anchor="middle">
+                  {b.tick}
+                </text>
+              ) : null}
+              <rect
+                class="chart__hit"
+                x={b.slotX}
+                y={14}
+                width={b.slotWidth}
+                height={w.baseline - 14}
+                tabIndex={0}
+                aria-label={`${b.weekText} · ${b.costText}${b.slackText ? ` · ${t('stats.legendSlack')} ${b.slackText}` : ''}`}
+                onMouseEnter={() => setHover(i)}
+                onFocus={() => setHover(i)}
+                onBlur={() => setHover(null)}
+              />
+            </g>
+          ))}
+        </svg>
+        {bar ? (
+          <div class="chart-tip" id="weekly-tip" role="status" style={{ left: bar.tipLeft, top: bar.tipTop }}>
+            <span class="muted small">{bar.weekText}</span>
+            <b class="num money" data-field="weekly-tip-cost">
+              {bar.costText}
+            </b>
+            {bar.slackText ? (
+              <span class="small">
+                {t('stats.legendSlack')} <span class="money">{bar.slackText}</span>
+              </span>
             ) : null}
-          </g>
-        ))}
-      </svg>
+          </div>
+        ) : null}
+      </div>
       <div class="chart-legend small muted">
         <span>
           <i class="swatch swatch--cost" aria-hidden="true" /> {t('stats.legendCost')}
@@ -295,7 +332,6 @@ export function Stats() {
               {m.semester ? <PeriodCard view={m.semester} id="period-semester" /> : null}
               <PeriodCard view={m.week} id="period-week" />
             </div>
-            <p class="muted small">{t('stats.note')}</p>
             <CoursesChart />
             <div class="stats-pair">
               <Highlight title={t('stats.expensive')} view={m.expensive} id="expensive" empty={t('stats.noLossy')} />

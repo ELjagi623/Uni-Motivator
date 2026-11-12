@@ -22,13 +22,11 @@ describe('check:tokens helpers', () => {
     assert.equal(parseColor('red'), null);
   });
 
-  it('parses :root, theme blocks and @media blocks', () => {
-    const rules = parseRules('/* c */ :root{--a:1;--b: rgba(1, 2, 3, .5)} @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--a:2}} [data-theme="dark"]{--a:3}');
+  it('parses :root and ignores other rules and @media blocks', () => {
+    const rules = parseRules('/* c */ :root{--a:1;--b: rgba(1, 2, 3, .5)} @media (min-width: 1px){.x{--a:2}} .y{--a:3}');
     const vars = collectVars(rules);
     assert.equal(vars.root.get('--a'), '1');
     assert.equal(vars.root.get('--b'), 'rgba(1, 2, 3, .5)');
-    assert.equal(vars.system.get('--a'), '2');
-    assert.equal(vars.dark.get('--a'), '3');
   });
 });
 
@@ -40,16 +38,10 @@ describe('check:tokens contract', () => {
     assert.deepEqual(checkContrast(tokens).problems, []);
   });
 
-  it('reports a theme variable missing in one of the places', () => {
-    const broken = tokens.replace(/(@media[^{]*\{\s*:root:not\(\[data-theme="light"\]\)\s*\{[\s\S]*?)--color-danger:[^;]*;/, '$1');
-    const problems = checkContract(broken, null);
-    assert.ok(problems.some((p) => p.includes('--color-danger') && p.includes('prefers-color-scheme')), problems.join('\n'));
-  });
-
-  it('reports a root-only variable that is missing, and dark / system blocks that disagree', () => {
+  it('reports a colour variable and a non-colour variable that are missing', () => {
+    const problems = checkContract(tokens.replace(/--color-danger:[^;]*;/, ''), null);
+    assert.ok(problems.some((p) => p.includes('--color-danger')), problems.join(', '));
     assert.ok(checkContract(tokens.replace('--space-8: 64px;', ''), null).some((p) => p.includes('--space-8')));
-    const disagree = tokens.replace(/(\[data-theme="dark"\]\s*\{[\s\S]*?--color-bg:\s*)#0F1626/, '$1#000000');
-    assert.ok(checkContract(disagree, null).some((p) => p.includes('--color-bg') && p.includes('differ')));
   });
 
   it('reports a value that differs from the draft and a draft variable that is absent', () => {

@@ -2,18 +2,15 @@
 // `npm run check:tokens` - verifies the design-token files.
 //
 //   contract  src/styles/tokens.css defines every required variable:
-//               colours + shadows  -> in :root, [data-theme="light"], [data-theme="dark"] and
-//                                     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }
-//                                     (the dark block and the media block must carry identical values)
-//               fonts, type scale, weights, letter spacing, spacing, radii, motion
-//                                  -> in :root only (they do not depend on the theme)
-//             and every variable of .pipeline/design/tokens-draft.css has the same value in the same place
+//               colours, shadows, fonts, type scale, weights, letter spacing, spacing, radii, motion
+//                                  -> all in :root (the app has a light theme only)
+//             and every :root variable of .pipeline/design/tokens-draft.css has the same value
 //             (tokens.css may define more). The draft comparison is skipped when the draft is not present
 //             (.pipeline/ is not committed).
 //   fonts     public/fonts has a number-font and a body-font .woff2, every url() in src/styles/fonts.css
 //             exists, each @font-face has font-display: swap, an OFL licence text is present, the folder
 //             is smaller than 1.5 MB, and base.css has a rule with tabular-nums for .num.
-//   contrast  WCAG contrast ratios of the key colour pairs, light and dark.
+//   contrast  WCAG contrast ratios of the key colour pairs.
 //
 // Output has one line per check group: "CHECK <group>: PASS|FAIL|SKIP ...", then details for failures.
 
@@ -114,16 +111,13 @@ function splitDeclarations(body) {
 
 export const LOCATIONS = {
   root: { selector: ':root', media: null },
-  light: { selector: '[data-theme="light"]', media: null },
-  dark: { selector: '[data-theme="dark"]', media: null },
-  system: { selector: ':root:not([data-theme="light"])', media: '(prefers-color-scheme: dark)' },
 };
 
 const norm = (s) => s.replace(/'/g, '"').replace(/\s+/g, '');
 
 /** Collect variables per location from parsed rules (several rules for the same location are merged). */
 export function collectVars(rules) {
-  const out = { root: new Map(), light: new Map(), dark: new Map(), system: new Map() };
+  const out = { root: new Map() };
   for (const [key, loc] of Object.entries(LOCATIONS)) {
     for (const r of rules) {
       if (norm(r.selector) === norm(loc.selector) && (r.media ? norm(r.media) : null) === (loc.media ? norm(loc.media) : null)) {
@@ -156,21 +150,13 @@ export function checkContract(tokensCss, draftCss) {
   const problems = [];
   const vars = collectVars(parseRules(tokensCss));
   for (const name of THEME_VARS) {
-    for (const key of ['root', 'light', 'dark', 'system']) {
-      if (!vars[key].has(name)) problems.push(`${name} missing in ${LOCATIONS[key].media ? `@media ${LOCATIONS[key].media} ` : ''}${LOCATIONS[key].selector}`);
-    }
-    if (vars.dark.has(name) && vars.system.has(name) && norm(vars.dark.get(name)) !== norm(vars.system.get(name))) {
-      problems.push(`${name}: [data-theme="dark"] and the prefers-color-scheme block differ`);
-    }
-    if (vars.root.has(name) && vars.light.has(name) && norm(vars.root.get(name)) !== norm(vars.light.get(name))) {
-      problems.push(`${name}: :root and [data-theme="light"] differ`);
-    }
+    if (!vars.root.has(name)) problems.push(`${name} missing in :root`);
   }
   for (const name of ROOT_ONLY_VARS) if (!vars.root.has(name)) problems.push(`${name} missing in :root`);
 
   if (draftCss !== null) {
     const draft = collectVars(parseRules(draftCss));
-    for (const key of ['root', 'light', 'dark', 'system']) {
+    for (const key of ['root']) {
       for (const [name, value] of draft[key]) {
         if (!vars[key].has(name)) problems.push(`draft variable ${name} not in tokens.css (${LOCATIONS[key].selector})`);
         else if (norm(vars[key].get(name)) !== norm(value)) problems.push(`${name} differs from the draft in ${LOCATIONS[key].selector}: tokens "${vars[key].get(name)}" vs draft "${value}"`);
@@ -219,7 +205,7 @@ export function checkContrast(tokensCss) {
   const vars = collectVars(parseRules(tokensCss));
   const problems = [];
   const rows = [];
-  for (const [theme, key] of [['light', 'root'], ['dark', 'dark'], ['dark (system)', 'system']]) {
+  for (const [theme, key] of [['light', 'root']]) {
     for (const [fg, bg, min] of CONTRAST_PAIRS) {
       const a = vars[key].get(fg);
       const b = vars[key].get(bg);
@@ -300,7 +286,7 @@ function main() {
 
   const tokens = read('src/styles/tokens.css');
   const contract = checkContract(tokens, draft);
-  report('contract', contract, `${THEME_VARS.length} theme variables x 4 places, ${ROOT_ONLY_VARS.length} root-only variables${draft ? ', identical to tokens-draft.css' : ''}`, draft ? '' : 'draft comparison skipped: .pipeline/design/tokens-draft.css not present');
+  report('contract', contract, `${THEME_VARS.length} colour / shadow variables, ${ROOT_ONLY_VARS.length} root-only variables${draft ? ', identical to tokens-draft.css' : ''}`, draft ? '' : 'draft comparison skipped: .pipeline/design/tokens-draft.css not present');
 
   const fonts = checkFonts({ fontsCss: read('src/styles/fonts.css'), baseCss: read('src/styles/base.css'), publicDir: path.join(root, 'public') });
   report('fonts', fonts.problems, `${fonts.files.filter((f) => f.name.endsWith('.woff2')).length} woff2 files, ${(fonts.totalBytes / 1024).toFixed(0)} KB total: ${fonts.files.map((f) => f.name).join(', ')}`);

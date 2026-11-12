@@ -2,15 +2,17 @@
 // check come from state / core.
 
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { t, type MessageKey } from '../../i18n';
-import { formatMinor, getCurrency } from '../../core/money';
+import { LOCALES, t, type Locale, type MessageKey } from '../../i18n';
+import { formatMinor, getCurrency, type CurrencyCode } from '../../core/money';
 import { CURRENCIES } from '../../data/currencies';
 import { REGION_PRESETS } from '../../data/regions';
 import { calendarSummaries, importFiles, importing, importReport, removeCalendar, type ImportFailureReason } from '../../state/calendars';
 import { calendars } from '../../state/data';
 import { enterDemo } from '../../state/demo';
+import { chooseLanguage, languageChoice } from '../../state/language';
 import {
   TOTAL_STEPS,
+  addSecondSemester,
   chooseRegion,
   draft,
   finishOnboarding,
@@ -19,6 +21,7 @@ import {
   nextStep,
   preview,
   previousStep,
+  removeSecondSemester,
   stepAllowsNext,
   tuitionMinorOf,
   updateDraft,
@@ -47,15 +50,6 @@ const STEP_TITLE_KEYS: Record<number, MessageKey> = {
   6: 'onboarding.step6.title',
   7: 'onboarding.step7.title',
 };
-const STEP_HINT_KEYS: Record<number, MessageKey> = {
-  1: 'onboarding.step1.hint',
-  2: 'onboarding.step2.hint',
-  3: 'onboarding.step3.hint',
-  4: 'onboarding.step4.hint',
-  5: 'onboarding.step5.hint',
-  6: 'onboarding.step6.hint',
-  7: 'onboarding.step7.hint',
-};
 
 function periodOptions() {
   return [
@@ -72,44 +66,85 @@ function StepRegion() {
     <div class="step-body">
       <div class="field-group">
         <label class="label" for="school-input">
-          {t('onboarding.step1.schoolLabel')}
+          {t('onboarding.step2.schoolLabel')}
         </label>
         <div class="field">
-          <TextInput id="school-input" value={d.school} label={t('onboarding.step1.schoolLabel')} placeholder={t('onboarding.step1.schoolPlaceholder')} onInput={(v) => updateDraft({ school: v })} />
+          <TextInput id="school-input" value={d.school} label={t('onboarding.step2.schoolLabel')} placeholder={t('onboarding.step2.schoolPlaceholder')} onInput={(v) => updateDraft({ school: v })} />
         </div>
       </div>
       <div class="field-group">
-        <span class="label">{t('onboarding.step1.regionLabel')}</span>
+        <span class="label">{t('onboarding.step2.regionLabel')}</span>
         <ChoiceGroup<RegionId>
           name="region"
-          legend={t('onboarding.step1.regionLabel')}
+          legend={t('onboarding.step2.regionLabel')}
           variant="chip"
           value={d.region}
           options={REGION_PRESETS.map((r) => ({ value: r.id, label: t(`region.${r.id}` as const) }))}
           onChange={chooseRegion}
         />
-        <p class="muted small option-note">{t('onboarding.step1.regionNote')}</p>
       </div>
     </div>
   );
 }
 
-function StepPeriod() {
-  const d = draft.value;
+function StepLanguage() {
   return (
-    <div class="step-body">
-      <ChoiceGroup<BillingPeriod> name="period" legend={t('onboarding.step3.periodLabel')} variant="seg" value={d.billingPeriod} options={periodOptions()} onChange={(v) => updateDraft({ billingPeriod: v })} />
-      <p class="muted option-note">{d.billingPeriod === 'semester' ? t('onboarding.step2.semesterNote') : t('onboarding.step2.yearNote')}</p>
+    <div class="step-body language-step">
+      <ChoiceGroup<Locale>
+        name="language"
+        legend={t('onboarding.step1.title')}
+        variant="chip"
+        value={languageChoice.value}
+        options={LOCALES.map((value) => ({ value, label: t(`lang.${value}` as const) }))}
+        onChange={chooseLanguage}
+      />
+    </div>
+  );
+}
+
+interface TuitionRowProps {
+  id: string;
+  value: string;
+  symbol: string;
+  suffix: string;
+  /** Names the field for screen readers. */
+  label: string;
+  currency: CurrencyCode;
+  onInput: (value: string) => void;
+  onRemove?: () => void;
+}
+
+/** One tuition amount: the currency symbol, the box, what it covers ("Semester 1", "per year") and what it comes to. */
+function TuitionRow({ id, value, symbol, suffix, label, currency, onInput, onRemove }: TuitionRowProps) {
+  const minor = tuitionMinorOf({ tuitionText: value });
+  const typed = value.trim() !== '';
+  const valid = minor !== null;
+  const invalid = typed && !valid;
+  return (
+    <div class="tuition-row">
+      <div class={`field field--hero${invalid ? ' field--invalid' : ''}`}>
+        <span class="num accent hero-currency" aria-hidden="true">
+          {symbol}
+        </span>
+        <TextInput id={id} className="num" value={value} inputMode="decimal" placeholder="0" invalid={invalid} describedBy={`${id}-hint`} label={label} onInput={onInput} />
+        <span class="muted tuition-suffix">{suffix}</span>
+        {onRemove ? (
+          <button type="button" class="tuition-remove" id={`${id}-remove`} aria-label={t('onboarding.step3.removeSemester')} onClick={onRemove}>
+            ×
+          </button>
+        ) : null}
+      </div>
+      <p id={`${id}-hint`} class={invalid ? 'field-error' : 'muted small'} role={invalid ? 'alert' : undefined}>
+        {invalid ? t('onboarding.step3.invalid') : valid ? t('onboarding.step3.asAmount', { amount: formatMinor(minor, currency) }) : ''}
+      </p>
     </div>
   );
 }
 
 function StepTuition() {
   const d = draft.value;
-  const minor = tuitionMinorOf(d);
-  const typed = d.tuitionText.trim() !== '';
-  const invalid = typed && minor === null;
   const perSemester = d.billingPeriod === 'semester';
+  const symbol = getCurrency(d.currency).symbol;
   return (
     <div class="step-body">
       <div class="form-row">
@@ -129,28 +164,36 @@ function StepTuition() {
       </div>
       <div class="field-group">
         <label class="label" for="tuition-input">
-          {perSemester ? t('onboarding.step3.tuitionSemester') : t('onboarding.step3.tuitionYear')}
+          {t('onboarding.step3.tuitionLabel')}
         </label>
-        <div class={`field field--hero${invalid ? ' field--invalid' : ''}`}>
-          <span class="num accent hero-currency" aria-hidden="true">
-            {getCurrency(d.currency).symbol}
-          </span>
-          <TextInput
-            id="tuition-input"
-            className="num"
-            value={d.tuitionText}
-            inputMode="decimal"
-            placeholder="0"
-            invalid={invalid}
-            describedBy="tuition-hint"
-            label={perSemester ? t('onboarding.step3.tuitionSemester') : t('onboarding.step3.tuitionYear')}
-            onInput={(v) => updateDraft({ tuitionText: v })}
+        <TuitionRow
+          id="tuition-input"
+          value={d.tuitionText}
+          symbol={symbol}
+          currency={d.currency}
+          suffix={perSemester ? t('onboarding.step3.semester1') : t('onboarding.step3.suffixYear')}
+          label={perSemester ? t('onboarding.step3.semester1') : t('onboarding.step3.tuitionLabel')}
+          onInput={(v) => updateDraft({ tuitionText: v })}
+        />
+        {perSemester && d.tuition2Text !== null ? (
+          <TuitionRow
+            id="tuition2-input"
+            value={d.tuition2Text}
+            symbol={symbol}
+            currency={d.currency}
+            suffix={t('onboarding.step3.semester2')}
+            label={t('onboarding.step3.semester2')}
+            onInput={(v) => updateDraft({ tuition2Text: v })}
+            onRemove={removeSecondSemester}
           />
-          <span class="muted">{perSemester ? t('onboarding.step3.suffixSemester') : t('onboarding.step3.suffixYear')}</span>
-        </div>
-        <p id="tuition-hint" class={invalid ? 'field-error' : 'muted small'} role={invalid ? 'alert' : undefined}>
-          {invalid ? t('onboarding.step3.invalid') : minor !== null ? t('onboarding.step3.asAmount', { amount: formatMinor(minor, d.currency) }) : perSemester ? t('onboarding.step3.helpSemester') : t('onboarding.step3.helpYear')}
-        </p>
+        ) : null}
+        {perSemester && d.tuition2Text === null ? (
+          <div>
+            <Button small variant="ghost" id="add-semester" onClick={addSecondSemester}>
+              + {t('onboarding.step3.addSemester')}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -184,9 +227,7 @@ function StepDates() {
         <p class="field-error" role="alert">
           {t('onboarding.step4.invalid')}
         </p>
-      ) : (
-        <p class="muted small option-note">{t('onboarding.step4.help')}</p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -247,6 +288,7 @@ function StepImport() {
           {t('onboarding.step5.choose')}
         </label>
       </div>
+      <p class="muted small" id="calendar-source-hint">{t('onboarding.step5.source')}</p>
       <div role="status" aria-live="polite">
         {importing.value ? <p class="muted">{t('onboarding.step5.importing')}</p> : null}
         {report ? (
@@ -357,9 +399,9 @@ function StepPreview() {
 function renderStep(step: number) {
   switch (step) {
     case 1:
-      return <StepRegion />;
+      return <StepLanguage />;
     case 2:
-      return <StepPeriod />;
+      return <StepRegion />;
     case 3:
       return <StepTuition />;
     case 4:
@@ -434,8 +476,7 @@ export function Onboarding() {
           <h1 class="h1" tabIndex={-1} ref={headingRef} id="step-title">
             {t(STEP_TITLE_KEYS[step])}
           </h1>
-          <p class="muted">{t(STEP_HINT_KEYS[step])}</p>
-        </header>
+                </header>
         {renderStep(step)}
       </div>
       <div class="panel__footer">

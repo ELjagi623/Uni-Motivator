@@ -7,7 +7,7 @@
 import { signal } from '@preact/signals';
 import { fetchBackup, ImportApiError, postImport } from '../api/client';
 import { t } from '../i18n';
-import { loadAll } from './data';
+import { flushSaves, loadAll } from './data';
 
 export const BACKUP_SCHEMA_VERSION = 1;
 
@@ -102,7 +102,75 @@ export async function confirmImport(): Promise<boolean> {
   }
 }
 
+// ------------------------------------------------------------------ reset everything
+
+export const resetPending = signal(false);
+export const resetBusy = signal(false);
+export const resetError = signal<string | null>(null);
+
+/** A backup with nothing in it: importing it empties the data folder (after the server's safety copy) = first start. */
+export function emptyBackupText(now: number = Date.now()): string {
+  return JSON.stringify({
+    app: 'tuition-ticker',
+    kind: 'backup',
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    exportedAt: new Date(now).toISOString(),
+    config: { schemaVersion: 1 },
+    marks: { schemaVersion: 1 },
+    slacks: { schemaVersion: 1 },
+    calendars: [],
+  });
+}
+
+export function askReset(): void {
+  resetError.value = null;
+  resetPending.value = true;
+}
+
+export function cancelReset(): void {
+  resetPending.value = false;
+}
+
+function reloadPage(): void {
+  window.location.hash = '#/';
+  window.location.reload();
+}
+
+/**
+ * The user confirmed: pending edits are sent first (so nothing can write the old data back afterwards), the server
+ * saves a safety copy and empties settings, timetable, marks and slacking records, the browser's own stored values
+ * (language, interface size, reminder bookkeeping) are cleared, and the page starts again from the first-run screen.
+ */
+export async function confirmReset(reload: () => void = reloadPage): Promise<boolean> {
+  if (resetBusy.peek()) return false;
+  resetBusy.value = true;
+  resetError.value = null;
+  try {
+    await flushSaves();
+    await postImport(emptyBackupText());
+    for (const area of ['localStorage', 'sessionStorage'] as const) {
+      try {
+        globalThis[area]?.clear();
+      } catch {
+        /* blocked storage: nothing to clear */
+      }
+    }
+    resetPending.value = false;
+    reload();
+    return true;
+  } catch (err) {
+    resetPending.value = false;
+    resetError.value = t('reset.err', { message: err instanceof Error ? err.message : String(err) });
+    return false;
+  } finally {
+    resetBusy.value = false;
+  }
+}
+
 export function resetBackupState(): void {
+  resetPending.value = false;
+  resetBusy.value = false;
+  resetError.value = null;
   backupMessage.value = null;
   importPending.value = null;
   backupBusy.value = false;

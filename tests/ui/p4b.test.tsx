@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 import fs from 'node:fs';
 import path from 'node:path';
-import vm from 'node:vm';
 import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { billingStateAt, buildPools } from '../../src/core/billing';
@@ -11,7 +10,6 @@ import { rateText } from '../../src/state/dashboard';
 import { pools as statePools } from '../../src/state/derived';
 import { config } from '../../src/state/data';
 import { installPrivacyShortcut, privacyOn, setPrivacy } from '../../src/state/privacy';
-import { applyTheme, installTheme, readStoredTheme } from '../../src/state/theme';
 import { nowOverride } from '../../src/state/now';
 import { boot, flushSaves, teardown, type Harness } from './harness';
 import { CLASS_ID, NOWS, fixtureConfig, fullTermText, hk, inputsFor } from '../state/fixture-app';
@@ -114,103 +112,6 @@ describe('privacy mode on the pages', () => {
     const css = fs.readFileSync(path.join(root, 'src', 'styles', 'components.css'), 'utf8');
     expect(css).toMatch(/\[data-privacy='on'\]\s*\.money:focus-within[^}]*filter:\s*none/);
     expect(privacyOn.value).toBe(false);
-  });
-});
-
-// ------------------------------------------------------------------ theme
-
-describe('theme', () => {
-  const clickTheme = async (h: Harness, value: 'system' | 'light' | 'dark') => {
-    const input = h.$<HTMLInputElement>(`input[name="settings-theme"][value="${value}"]`);
-    expect(input).not.toBeNull();
-    await act(async () => input!.click());
-    await h.settle();
-  };
-
-  it('the settings offer follow-system / light / dark; the choice sets data-theme at once and is written to the config', async () => {
-    const h = await boot({ path: '/settings', nowMs: NOWS.doneToday });
-    stops.push(installTheme());
-    await h.settle();
-    const labels = h.$$('input[name="settings-theme"]').map((i) => i.parentElement?.textContent);
-    expect(labels).toEqual(['跟随系统', '日间', '夜间']);
-    expect(h.$<HTMLInputElement>('input[name="settings-theme"][value="system"]')!.checked).toBe(true);
-    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
-
-    await clickTheme(h, 'dark');
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    await clickTheme(h, 'light');
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    await flushSaves();
-    expect((config.value as { theme?: string }).theme).toBe('light');
-    expect(h.server.puts('config').at(-1)?.json).toMatchObject({ doc: { theme: 'light' } });
-
-    await clickTheme(h, 'system');
-    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
-    await flushSaves();
-    expect(h.server.puts('config').at(-1)?.json).toMatchObject({ doc: { theme: 'system' } });
-  });
-
-  it('the saved choice is applied again after a reload (config -> data-theme), and mirrored for the first paint', async () => {
-    const cfg = { ...fixtureConfig(), theme: 'dark' as const };
-    const h = await boot({ path: '/', nowMs: NOWS.inClass, configOverride: cfg });
-    stops.push(installTheme());
-    await h.settle();
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    expect(readStoredTheme()).toBe('dark');
-    // the config is the source of truth: a config without a theme means "follow the system"
-    const h2 = await boot({ path: '/', nowMs: NOWS.inClass });
-    stops.push(installTheme());
-    await h2.settle();
-    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
-    expect(readStoredTheme()).toBeNull();
-  });
-
-  it('"follow the system" leaves no data-theme, so tokens.css decides with prefers-color-scheme; light / dark force one', () => {
-    const css = fs.readFileSync(path.join(root, 'src', 'styles', 'tokens.css'), 'utf8');
-    expect(css).toMatch(/@media \(prefers-color-scheme: dark\)\s*\{\s*:root:not\(\[data-theme="light"\]\)/);
-    expect(css).toContain('[data-theme="dark"]');
-    expect(css).toContain('[data-theme="light"]');
-    applyTheme('dark');
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    applyTheme('system');
-    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
-  });
-
-  describe('index.html sets the theme before the first paint', () => {
-    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
-
-    const run = (storage: unknown) => {
-      const attrs: Record<string, string> = {};
-      const sandbox = {
-        window: { localStorage: storage },
-        document: { documentElement: { setAttribute: (k: string, v: string) => (attrs[k] = v) } },
-      };
-      vm.runInNewContext(script, sandbox);
-      return attrs;
-    };
-
-    it('has a classic inline script in the head, ahead of the app module (so it runs before anything is painted)', () => {
-      expect(script).toContain('tt.theme');
-      const head = html.slice(0, html.indexOf('</head>'));
-      expect(head).toContain('<script>');
-      expect(html.indexOf('<script>')).toBeLessThan(html.indexOf('type="module"'));
-      expect(html).toContain('<meta name="color-scheme"');
-    });
-
-    it('sets data-theme from the saved choice, and leaves it alone for "system", nothing saved or blocked storage', () => {
-      expect(run({ getItem: () => 'dark' })).toEqual({ 'data-theme': 'dark' });
-      expect(run({ getItem: () => 'light' })).toEqual({ 'data-theme': 'light' });
-      expect(run({ getItem: () => null })).toEqual({});
-      expect(run({ getItem: () => 'purple' })).toEqual({});
-      expect(
-        run({
-          getItem: () => {
-            throw new Error('blocked');
-          },
-        }),
-      ).toEqual({});
-    });
   });
 });
 

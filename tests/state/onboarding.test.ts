@@ -10,6 +10,7 @@ import { calendars, config, loadAll, resetDataState } from '../../src/state/data
 import { importFiles, resetCalendarState } from '../../src/state/calendars';
 import { allSessions } from '../../src/state/derived';
 import {
+  addSecondSemester,
   applyRegion,
   buildConfig,
   buildPreview,
@@ -20,8 +21,11 @@ import {
   initialDraft,
   nextStep,
   preview,
+  removeSecondSemester,
   selectedCourses,
   setGroupSelected,
+  tuition2MinorOf,
+  tuitionComplete,
   tuitionMinorOf,
   updateDraft,
   chooseRegion,
@@ -98,9 +102,9 @@ describe('onboarding: tuition and the next/finish guards', () => {
 });
 
 describe('onboarding: region presets', () => {
-  it('fills 08-01 / 12-25 for the northern hemisphere and 01-01 / 07-01 for the southern one', () => {
+  it('fills 09-01 / 12-31 for the northern hemisphere and 01-01 / 07-01 for the southern one', () => {
     const north = applyRegion(initialDraft(), 'northern');
-    expect([north.yearStart, north.splitDate]).toEqual(['08-01', '12-25']);
+    expect([north.yearStart, north.splitDate]).toEqual(['09-01', '12-31']);
     const south = applyRegion(initialDraft(), 'southern');
     expect([south.yearStart, south.splitDate]).toEqual(['01-01', '07-01']);
     chooseRegion('southern');
@@ -116,7 +120,7 @@ describe('onboarding: the config that is written', () => {
   it('per-semester and per-year billing give different, correct structures', () => {
     const semester = buildConfig(withTuition('398000', { billingPeriod: 'semester', currency: 'HKD', school: ' HKU ' }), g, sources);
     const year = buildConfig(withTuition('398000', { billingPeriod: 'year', currency: 'GBP' }), g, sources);
-    expect(semester).toMatchObject({ schemaVersion: 1, onboardingDone: true, school: 'HKU', currency: 'HKD', academic: { yearStart: '08-01', splitDate: '12-25', billingPeriod: 'semester' }, tuition: { defaultMinor: 39800000, byPool: {} }, calendars: sources });
+    expect(semester).toMatchObject({ schemaVersion: 1, onboardingDone: true, school: 'HKU', currency: 'HKD', academic: { yearStart: '09-01', splitDate: '12-31', billingPeriod: 'semester' }, tuition: { defaultMinor: 39800000, byPool: {} }, calendars: sources });
     expect(year).toMatchObject({ currency: 'GBP', academic: { billingPeriod: 'year' }, tuition: { defaultMinor: 39800000 } });
     expect(year?.tuition).not.toHaveProperty('byPool');
     expect(semester?.tuition).not.toEqual(year?.tuition);
@@ -239,7 +243,7 @@ describe('onboarding: finishing', () => {
     const put = server.puts('config');
     expect(put).toHaveLength(1);
     const doc = (put[0].json as { doc: Record<string, unknown> }).doc;
-    expect(doc).toMatchObject({ onboardingDone: true, currency: 'HKD', tuition: { defaultMinor: 39800000 }, academic: { billingPeriod: 'semester', splitDate: '12-25' } });
+    expect(doc).toMatchObject({ onboardingDone: true, currency: 'HKD', tuition: { defaultMinor: 39800000 }, academic: { billingPeriod: 'semester', splitDate: '12-31' }, language: 'en' });
     expect(Array.isArray(doc.calendars) && doc.calendars.length).toBe(1);
     expect(config.value.onboardingDone).toBe(true);
     expect(draft.value.step).toBe(1);
@@ -267,5 +271,60 @@ describe('derived values', () => {
     setConfig({ ...built, tuition: { defaultMinor: 20000000, byPool: {} } });
     expect(pools.value).not.toBe(first);
     expect(pools.value[0].tuitionMinor).toBe(20000000);
+  });
+});
+
+describe('onboarding: two semesters', () => {
+  const sessions = expandIcs(fullTermText);
+  const g = groupSessions(sessions);
+  const sources = [{ id: 'cal-1', name: 'full-term.ics' }];
+  // the full-term fixture runs in September-December and (with the old dates) has two pools
+  const dates = { yearStart: '08-01', splitDate: '12-25' };
+
+  it('the second semester is optional, and when added it must be a valid amount', () => {
+    const base = { ...initialDraft(), tuitionText: '200000', billingPeriod: 'semester' as const };
+    expect(tuitionComplete(base)).toBe(true);
+    expect(tuitionComplete({ ...base, tuition2Text: '' })).toBe(false);
+    expect(tuitionComplete({ ...base, tuition2Text: 'abc' })).toBe(false);
+    expect(tuitionComplete({ ...base, tuition2Text: '0' })).toBe(false);
+    expect(tuitionComplete({ ...base, tuition2Text: '180,000' })).toBe(true);
+    expect(tuition2MinorOf({ tuition2Text: '180000' })).toBe(18000000);
+    expect(tuitionComplete({ ...base, tuitionText: '' })).toBe(false);
+    // per year there is no second box: whatever it holds is ignored
+    expect(tuitionComplete({ ...base, billingPeriod: 'year', tuition2Text: 'abc' })).toBe(true);
+  });
+
+  it('"+" and "x" add and remove the second box', () => {
+    expect(draft.value.tuition2Text).toBeNull();
+    addSecondSemester();
+    expect(draft.value.tuition2Text).toBe('');
+    updateDraft({ tuition2Text: '180000' });
+    addSecondSemester(); // already there: nothing is lost
+    expect(draft.value.tuition2Text).toBe('180000');
+    removeSecondSemester();
+    expect(draft.value.tuition2Text).toBeNull();
+  });
+
+  it('the config gives every second-semester pool its own amount; the first amount stays the default', () => {
+    const d = { ...initialDraft(), ...dates, tuitionText: '200000', tuition2Text: '180000', billingPeriod: 'semester' as const };
+    const config = buildConfig(d, g, sources, sessions);
+    expect(config?.tuition).toEqual({ defaultMinor: 20000000, byPool: { '2026-S2': 18000000 } });
+    // the same amount twice needs no entry of its own; no second box means the second semester costs the same
+    expect(buildConfig({ ...d, tuition2Text: '200000' }, g, sources, sessions)?.tuition).toEqual({ defaultMinor: 20000000, byPool: {} });
+    expect(buildConfig({ ...d, tuition2Text: null }, g, sources, sessions)?.tuition).toEqual({ defaultMinor: 20000000, byPool: {} });
+    // per year: one amount, no table
+    expect(buildConfig({ ...d, billingPeriod: 'year' }, g, sources, sessions)?.tuition).toEqual({ defaultMinor: 20000000 });
+    // an incomplete second box blocks the config
+    expect(buildConfig({ ...d, tuition2Text: '' }, g, sources, sessions)).toBeNull();
+  });
+
+  it('the preview prices each semester with its own amount', () => {
+    const d = { ...initialDraft(), ...dates, tuitionText: '200000', tuition2Text: '180000', billingPeriod: 'semester' as const };
+    const p = buildPreview(d, sessions, g);
+    expect(p.pools.map((x) => x.key)).toEqual(['2026-S1', '2026-S2']);
+    const first = buildPreview({ ...d, tuition2Text: null }, sessions, g);
+    expect(p.pools[0].rate).toBe(first.pools[0].rate); // semester 1 is unchanged
+    expect(p.pools[1].rate).not.toBe(first.pools[1].rate); // semester 2 follows its own tuition
+    expect(p.pools[1].average).not.toBe(first.pools[1].average);
   });
 });

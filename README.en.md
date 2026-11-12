@@ -15,7 +15,7 @@ Turn the tuition you paid into "money per second". Import your class timetable a
    - Windows: double-click `start.cmd`.
    - macOS: the **first time**, in Finder **right-click `start.command` → Open → Open** (macOS asks once before running a downloaded script; afterwards a double-click is enough). If it says you lack permission, run `chmod +x start.command` once in Terminal.
 
-Your browser opens the page by itself (an address like `http://127.0.0.1:4280`); closing the black command window stops the app. The first visit starts a 7-step setup: school & region → semester / year → currency & tuition → year start & split date → import calendar → recognise courses → confirm. To look around first, click "Try the demo first": it uses a made-up timetable and saves nothing.
+Your browser opens the page by itself (an address like `http://127.0.0.1:4280`); closing the black command window stops the app. The first visit starts a 7-step setup: language → school & region → tuition (per year or per semester, currency, amount) → year start & split date → import calendar → recognise courses → confirm. To look around first, click "Try the demo first": it uses a made-up timetable and saves nothing.
 
 ## Export your timetable from Google Calendar
 
@@ -31,7 +31,7 @@ Most university timetable systems can export `.ics` too, and you can import that
 - A "slacking" button that records how long you slacked, what it cost, and what that money could have bought (rice boxes, milk tea, ...).
 - Class list: mark classes as skipped / cancelled / late / left early and see what the school swallowed and what you lost; add classes by hand when the calendar lacks them.
 - Statistics, a share card (no name, no school name), a skip calculator, class reminders, calendar subscription sync.
-- Peek-proof mode (press `B` to blur every amount), light / dark theme, a second display currency, credit-weighted billing, several academic years.
+- Peek-proof mode (press `B` to blur every amount), a second display currency, credit-weighted billing, several academic years.
 - Backup export / import, interface languages Simplified Chinese, Traditional Chinese and English, three tones for the copy lines.
 
 ## Privacy

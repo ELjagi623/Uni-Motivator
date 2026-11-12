@@ -1,13 +1,12 @@
 /* Minimal reset and global defaults. Colours, fonts and sizes come from tokens.css only. */
 
 :root {
-  color-scheme: light dark;
-}
-:root[data-theme='light'] {
   color-scheme: light;
 }
-:root[data-theme='dark'] {
-  color-scheme: dark;
+
+/* Interface size (settings): --ui-scale is set from src/state/scale.ts; without it the page is shown at the default 120 %. */
+html {
+  zoom: var(--ui-scale, 1.2);
 }
 
 *,

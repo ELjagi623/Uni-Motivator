@@ -13,9 +13,6 @@
       header { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; justify-content: space-between; margin-bottom: var(--space-5); }
       h1 { font-size: var(--fs-h1); font-family: var(--font-number); font-weight: var(--fw-heavy); }
       h2 { font-size: var(--fs-h2); margin: var(--space-6) 0 var(--space-3); }
-      .toggle { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-pill); overflow: hidden; background: var(--color-surface); }
-      .toggle button { border: 0; background: transparent; padding: var(--space-2) var(--space-4); cursor: pointer; font-size: var(--fs-small); }
-      .toggle button[aria-pressed='true'] { background: var(--color-tank-fill); color: var(--color-surface); }
       .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: var(--space-5); }
       .hero { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); }
       .hero .cur { font-family: var(--font-number); font-weight: var(--fw-heavy); font-size: var(--fs-h1); color: var(--color-accent); }
@@ -43,11 +40,6 @@
     <main>
       <header>
         <h1>Design tokens</h1>
-        <div class="toggle" role="group" aria-label="Theme">
-          <button type="button" data-mode="system" aria-pressed="true">跟随系统</button>
-          <button type="button" data-mode="light" aria-pressed="false">日间</button>
-          <button type="button" data-mode="dark" aria-pressed="false">夜间</button>
-        </div>
       </header>
 
       <section class="card" aria-label="Hero number">
@@ -69,7 +61,7 @@
         </table>
       </div>
 
-      <h2>Colours (<span id="theme-name">system</span>)</h2>
+      <h2>Colours</h2>
       <div class="swatches" id="swatches"></div>
 
       <h2>Slack gradient</h2>
@@ -109,23 +101,6 @@
         document.getElementById('space').innerHTML = html;
       }
 
-      function setMode(mode) {
-        if (mode === 'system') root.removeAttribute('data-theme');
-        else root.setAttribute('data-theme', mode);
-        document.querySelectorAll('.toggle button').forEach(function (b) {
-          b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
-        });
-        var dark = mode === 'dark' || (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-        document.getElementById('theme-name').textContent = mode + (mode === 'system' ? ' (now ' + (dark ? 'dark' : 'light') + ')' : '');
-        renderSwatches();
-      }
-
-      document.querySelectorAll('.toggle button').forEach(function (b) {
-        b.addEventListener('click', function () { setMode(b.dataset.mode); });
-      });
-      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
-        if (!root.hasAttribute('data-theme')) setMode('system');
-      });
 
       // Load the fonts explicitly (they are only fetched when text uses them) and report the result.
       var specs = ['700 48px Manrope', '800 48px Manrope', '400 16px Inter', '700 16px Inter'];
@@ -139,7 +114,7 @@
       });
 
       renderSpace();
-      setMode('system');
+      renderSwatches();
     </script>
   </body>
 </html>

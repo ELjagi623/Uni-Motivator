@@ -66,7 +66,7 @@ async function p3a3() {
   const logic = requireVitest(/^tests\/state\/onboarding\.test\.ts$/, [
     'turns typed major-unit amounts into integer minor units without floating-point error',
     'blocks step 3 and the final step while the tuition is empty or 0',
-    'fills 08-01 / 12-25 for the northern hemisphere and 01-01 / 07-01 for the southern one',
+    'fills 09-01 / 12-31 for the northern hemisphere and 01-01 / 07-01 for the southern one',
     'per-semester and per-year billing give different, correct structures',
     'imports a plain .ics',
     'imports a .zip',

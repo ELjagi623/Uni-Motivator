@@ -84,5 +84,5 @@ export const checks = [
   { id: 'P2.1', title: 'design deliverables in place (skipped when .pipeline/ is absent)', run: p21 },
   { id: 'P2.2', title: 'token contract complete and identical to the draft', run: p22 },
   { id: 'P2.3', title: 'font files, @font-face references, OFL, size, tabular-nums', run: p23 },
-  { id: 'P2.4', title: 'WCAG contrast of key colour pairs (light and dark)', run: p24 },
+  { id: 'P2.4', title: 'WCAG contrast of key colour pairs (light theme)', run: p24 },
 ];

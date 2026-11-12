@@ -146,7 +146,7 @@ export function isoWeekNumber(weekStartMs: number): number {
 
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
-function monthDay(ms: number): string {
+export function monthDay(ms: number): string {
   const d = new Date(ms);
   return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`;
 }

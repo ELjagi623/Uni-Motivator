@@ -11,14 +11,13 @@ import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 // @ts-expect-error the server is plain JavaScript (no type declarations)
 import { createStore } from '../../server/store.js';
-import { DEFAULT_LOCALE, setLocale } from '../../src/i18n';
+import { setLocale } from '../../src/i18n';
 import { editRateText, setSecondaryCurrency } from '../../src/state/currency';
 import { setIntensity } from '../../src/state/intensity';
 import { chooseLanguage } from '../../src/state/language';
 import { setLateEarly, setMark } from '../../src/state/marks';
 import { setReminderConfig } from '../../src/state/reminders';
 import { endSlack, startSlack } from '../../src/state/slack';
-import { setTheme } from '../../src/state/theme';
 import { boot, flushSaves, teardown } from './harness';
 import { CLASS_ID, NEXT_CLASS_ID, NOWS, fullTermText, nextYearText, twoYearConfig } from '../state/fixture-app';
 
@@ -26,16 +25,16 @@ const MON = 'ft-mon-s1@fixture|2026-11-09T01:00:00Z';
 
 beforeEach(() => {
   localStorage.clear();
-  setLocale(DEFAULT_LOCALE);
+  setLocale('zh-CN');
 });
 afterEach(() => {
   teardown();
-  setLocale(DEFAULT_LOCALE);
+  setLocale('zh-CN');
   localStorage.clear();
 });
 
 describe('backups written from real app data can be imported again', () => {
-  it('every setting and every kind of record the app writes passes the import check (two years, credits, second currency, manual classes, late / early, slacking, language, intensity, theme, reminders)', async () => {
+  it('every setting and every kind of record the app writes passes the import check (two years, credits, second currency, manual classes, late / early, slacking, language, intensity, reminders)', async () => {
     const h = await boot({ path: '/sessions', nowMs: NOWS.inClass, configOverride: { ...twoYearConfig(), billingMode: 'credit' }, texts: [fullTermText, nextYearText] });
     const set = async (fn: () => void) => {
       await act(async () => fn());
@@ -43,7 +42,6 @@ describe('backups written from real app data can be imported again', () => {
     };
     await set(() => chooseLanguage('zh-TW'));
     await set(() => setIntensity('extreme'));
-    await set(() => setTheme('dark'));
     await set(() => setSecondaryCurrency('CNY'));
     await set(() => void editRateText('0.14'));
     await set(() => setReminderConfig({ enabled: true, leadMinutes: 10 }));
@@ -81,7 +79,7 @@ describe('backups written from real app data can be imported again', () => {
 
     const docs = h.server.docs;
     // the data really contains what this test is about
-    expect(docs.config).toMatchObject({ billingMode: 'credit', language: 'zh-TW', intensity: 'extreme', theme: 'dark', secondaryCurrency: 'CNY', reminders: { enabled: true, leadMinutes: 10 } });
+    expect(docs.config).toMatchObject({ billingMode: 'credit', language: 'zh-TW', intensity: 'extreme', secondaryCurrency: 'CNY', reminders: { enabled: true, leadMinutes: 10 } });
     expect(docs.config.rates).toEqual({ CNY: expect.any(Number) });
     expect((docs.config.courses as Array<{ manual?: boolean }>).some((c) => c.manual)).toBe(true);
     expect(docs.marks.marks).toMatchObject({ [CLASS_ID]: { status: 'skipped' }, [NEXT_CLASS_ID]: { status: 'cancelled' }, [MON]: { lateMin: 10, earlyMin: 20 } });

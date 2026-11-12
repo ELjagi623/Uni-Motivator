@@ -79,6 +79,32 @@ describe('statistics page', () => {
     expect(weekly.querySelectorAll('rect.chart__slack')).toHaveLength(1); // the one week with slacking
   });
 
+  it('the weekly chart has a value axis with amounts, and hovering a week previews its exact amount', async () => {
+    const h = await boot({ path: '/stats', nowMs: NOWS.doneToday, ...slackDocs });
+    const labels = h.$$('#weekly-chart .chart__yvalue').map((e) => e.textContent ?? '');
+    expect(labels.length).toBeGreaterThanOrEqual(3);
+    expect(labels[0]).toBe('HK$0');
+    expect(labels.every((l) => /^HK\$[\d,]+$/.test(l))).toBe(true);
+    expect(h.$('#weekly-tip')).toBeNull();
+
+    const hits = h.$$('#weekly-chart .chart__hit');
+    expect(hits).toHaveLength(h.$$('#weekly-chart rect.chart__bar').length);
+    await act(async () => {
+      hits[hits.length - 1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+    });
+    await h.settle();
+    const tip = h.$('#weekly-tip')!;
+    expect(tip).not.toBeNull();
+    expect(tip.textContent).toContain('第 46 周');
+    expect(h.field('weekly-tip-cost')).toMatch(/^HK\$[\d,]+\.\d{2}$/);
+
+    await act(async () => {
+      h.$('#weekly-chart')!.parentElement!.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
+    });
+    await h.settle();
+    expect(h.$('#weekly-tip')).toBeNull();
+  });
+
   it('uses no chart library', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as { dependencies: Record<string, string>; devDependencies: Record<string, string> };
     const names = [...Object.keys(pkg.dependencies), ...Object.keys(pkg.devDependencies)];

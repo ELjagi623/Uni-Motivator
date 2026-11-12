@@ -6,8 +6,15 @@ import { computed, effect } from '@preact/signals';
 import { DEFAULT_LOCALE, isLocale, mirrorLocale, setLocale, type Locale } from '../i18n';
 import { config, loadStatus, setConfig } from './data';
 
-/** The saved language (default zh-CN). */
-export const languageChoice = computed<Locale>(() => (isLocale(config.value.language) ? config.value.language : DEFAULT_LOCALE));
+/**
+ * The saved language. A new install speaks the default (English); data that was set up before the language choice
+ * existed (onboarding done, no language saved) keeps the Chinese it always had.
+ */
+export const languageChoice = computed<Locale>(() => {
+  const saved = config.value.language;
+  if (isLocale(saved)) return saved;
+  return config.value.onboardingDone ? 'zh-CN' : DEFAULT_LOCALE;
+});
 
 /** Choose a language: the interface changes at once and the choice is saved. */
 export function chooseLanguage(next: Locale): void {

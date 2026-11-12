@@ -1,6 +1,7 @@
 /* Dashboard, slacking page and settlement card. Tokens only (check:ui forbids hard-coded colours).
    Motion: the only animations on the site are the ticking numbers (JS, text only), the floating light spots on the
-   slacking page (`tt-float`, CSS only) and the settlement card pop-in (`tt-pop`, once). */
+   slacking page (`tt-float`, CSS only), the settlement card pop-in (`tt-pop`, once) and the statistics charts
+   growing in when the page opens (`tt-grow-y` / `tt-grow-x`, in pages.css). */
 
 .card {
   display: flex;
@@ -97,7 +98,7 @@
   gap: var(--space-1);
 }
 .dash-hero .hero-number {
-  font-size: clamp(48px, 12vw, var(--fs-display));
+  font-size: clamp(48px, calc(12vw / var(--ui-scale, 1.2)), var(--fs-display));
   line-height: 1.05;
 }
 .dash-hero .hero-currency {
@@ -154,11 +155,20 @@
 }
 .carousel-card {
   justify-content: space-between;
+  text-align: center;
 }
 .carousel-text {
   margin: 0;
   font-size: 17px;
   font-weight: var(--fw-bold);
+  text-align: center;
+}
+.next-line {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  line-height: 1.3;
+  color: var(--color-text);
 }
 .state-card {
   gap: var(--space-3);
@@ -208,15 +218,24 @@
   background: var(--color-accent);
   text-decoration: none;
 }
+/* Each label starts under its own bar and carries the bar's colour; src/state/timelineLabels.ts moves colliding labels
+   to a second row (--lane) and sets the number of rows (--lanes). */
 .timeline__labels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
+  position: relative;
+  height: calc(var(--lanes, 1) * 24px);
   margin: 0;
   padding: 0;
   list-style: none;
   color: var(--color-text-muted);
   font-size: var(--fs-small);
+}
+.timeline__labels li {
+  position: absolute;
+  top: calc(var(--lane, 0) * 24px);
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--color-border);
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 /* ------------------------------------------------------------------ bottom button (fixed) */
@@ -311,7 +330,7 @@
   font-size: 28px;
 }
 .slack-number {
-  font-size: clamp(56px, 16vw, 88px);
+  font-size: clamp(56px, calc(16vw / var(--ui-scale, 1.2)), 88px);
   line-height: 1;
 }
 .slack-pill {

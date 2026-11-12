@@ -11,7 +11,7 @@ import { COPY_LIBRARIES, pickCopy, renderTemplate } from '../../src/core/copy';
 import { expandIcs } from '../../src/core/ics/expand';
 import { formatMinor } from '../../src/core/money';
 import type { Intensity } from '../../src/core/types';
-import { DEFAULT_LOCALE, LOCALES, dictionaries, getLocale, setLocale, t } from '../../src/i18n';
+import { LOCALES, dictionaries, getLocale, setLocale, t } from '../../src/i18n';
 import { parseSkipDates } from '../../src/state/manual';
 import { fetchBackup } from '../../src/api/client';
 import { cancelImport, chooseBackupFile, resetBackupState } from '../../src/state/backup';
@@ -35,14 +35,14 @@ let stops: Array<() => void> = [];
 beforeEach(() => {
   stops = [];
   localStorage.clear();
-  setLocale(DEFAULT_LOCALE);
+  setLocale('zh-CN');
   resetBackupState();
 });
 afterEach(() => {
   for (const s of stops) s();
   stops = [];
   teardown();
-  setLocale(DEFAULT_LOCALE);
+  setLocale('zh-CN');
   localStorage.clear();
   vi.restoreAllMocks();
 });
@@ -274,7 +274,7 @@ describe('late arrival and early leaving', () => {
 
 describe('split-date check with one-click adoption', () => {
   const lateConfig = () => {
-    const c = buildConfig({ ...initialDraft(), tuitionText: '398000' }, groupSessions(expandIcs(lateText)), [{ id: 'cal-fixture', name: 'late-term.ics' }]);
+    const c = buildConfig({ ...initialDraft(), yearStart: '08-01', splitDate: '12-25', tuitionText: '398000' }, groupSessions(expandIcs(lateText)), [{ id: 'cal-fixture', name: 'late-term.ics' }]);
     if (!c) throw new Error('config');
     return c;
   };
@@ -285,8 +285,8 @@ describe('split-date check with one-click adoption', () => {
     const check26 = checkSplitDate(sessions, { yearStart: '08-01', splitDate: '12-25', billingPeriod: 'semester' }).find((c) => c.year === 2026)!;
     expect(check26.status).toBe('suggest');
     const text = h.$('#settings-split-checks li')?.textContent ?? '';
-    expect(text).toContain('检测到你的寒假是 12-28 至 01-18');
-    expect(text).toContain(`建议把分割日改为 ${check26.suggestedSplit}`);
+    expect(text).toContain('寒假是 12-28 至 01-18');
+    expect(text).toContain(`建议分割日改为 ${check26.suggestedSplit}`);
     const before = pools.value.map((p) => [p.key, p.sessions.length]);
     expect(before).toEqual([['2026-S1', 16], ['2026-S2', 16]]); // Dec 28 is still in the second semester
 
@@ -297,7 +297,7 @@ describe('split-date check with one-click adoption', () => {
     await flushSaves();
     expect(config.value.academic?.splitDate).toBe(check26.suggestedSplit);
     expect(pools.value.map((p) => [p.key, p.sessions.length])).toEqual([['2026-S1', 17], ['2026-S2', 15]]);
-    expect(h.$('#settings-split-checks li')?.textContent).toContain('落在寒假里');
+    expect(h.$('#settings-split-checks li')?.textContent).toContain('没问题');
     expect(h.$('#settings-split-checks button')).toBeNull();
   });
 
@@ -319,7 +319,7 @@ describe('split-date check with one-click adoption', () => {
   it('in the first-run preview the same suggestion has an adopt button; adopting turns the check into "ok" and recalculates the prices', async () => {
     const sessions = expandIcs(lateText);
     const groups = groupSessions(sessions);
-    const draft = { ...initialDraft(), tuitionText: '398000' };
+    const draft = { ...initialDraft(), yearStart: '08-01', splitDate: '12-25', tuitionText: '398000' };
     const preview = buildPreview(draft, sessions, groups);
     const suggest = preview.splitChecks.find((c) => c.year === 2026)!;
     expect(suggest.status).toBe('suggest');
@@ -328,7 +328,7 @@ describe('split-date check with one-click adoption', () => {
     document.body.appendChild(host);
     const adopted: string[] = [];
     await act(async () => render(<SplitChecks checks={preview.splitChecks} id="x" onAdopt={(v) => adopted.push(v)} />, host));
-    expect(host.querySelector('li')?.textContent).toContain('建议把分割日改为 01-07');
+    expect(host.querySelector('li')?.textContent).toContain('建议分割日改为 01-07');
     await act(async () => host.querySelector<HTMLButtonElement>('#x-adopt-2026')!.click());
     expect(adopted).toEqual(['01-07']);
     const after = buildPreview({ ...draft, splitDate: adopted[0] }, sessions, groups);
@@ -467,10 +467,11 @@ describe('languages', () => {
     await check(h, 'input[name="settings-language"][value="zh-TW"]');
     expect(document.documentElement.lang).toBe('zh-TW');
     expect(h.$('h1')?.textContent).toBe('設定');
+    expect(localStorage.getItem('tt.lang')).toBe('zh-TW');
     await check(h, 'input[name="settings-language"][value="en"]');
     await flushSaves();
     expect((h.server.puts('config').at(-1)!.json as { doc: { language: string } }).doc.language).toBe('en');
-    expect(localStorage.getItem('tt.lang')).toBe('en');
+    expect(localStorage.getItem('tt.lang')).toBeNull(); // English is the default: nothing to remember
     expect(getLocale()).toBe('en');
   });
 

@@ -112,7 +112,6 @@ function InClass({ model, view }: { model: DashboardModel; view: SessionView }) 
       <div class="dash-cards">
         <TuitionTank model={model} currency={model.currency} sessionId={view.id} />
         <div class="card carousel-card">
-          <span class="label">{t('dashboard.carouselLabel')}</span>
           <CopyCarousel class="carousel-text money" scene="in-class" getVars={() => inClassCopyVars(model, view, activeNow.peek())} />
           <span class="muted small" id="slack-today">
             {t('dashboard.slackToday', { minutes: minutesOf(model.slackToday.seconds) })} · {t('dashboard.slackWasted')} <Money minor={model.slackToday.amountMinor} currency={model.currency} field="slack-today-amount" />
@@ -131,7 +130,7 @@ function Break({ model }: { model: DashboardModel }) {
   return (
     <>
       <div class="card state-card">
-        <span class="label">{t('dashboard.nextClass', { time: next.startText, course: next.label })}</span>
+        <p class="next-line" id="next-line">{t('dashboard.nextClass', { time: next.startText, course: next.label })}</p>
         <TickingText class="num state-number" field="countdown" compute={(nowMs) => durationText(liveAt(model, next.id, nowMs).countdownSec)} />
         <span class="muted small">
           {t('dashboard.countdownNote')} <Money minor={next.costMinor} currency={model.currency} field="next-cost" />
@@ -183,9 +182,6 @@ function Today({ model, empty }: { model: DashboardModel; empty: boolean }) {
         <Timeline model={model} />
       </div>
       <TuitionTank model={model} currency={model.currency} sessionId={null} />
-      <p class="muted small" id="state-footnote">
-        {empty ? t('dashboard.noClassFoot') : t('dashboard.doneFoot')}
-      </p>
     </>
   );
 }

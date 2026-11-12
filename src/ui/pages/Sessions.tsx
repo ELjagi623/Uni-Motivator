@@ -69,7 +69,6 @@ function LateEarly({ row }: { row: SessionRow }) {
           {t('late.invalid', { max: row.durationMin })}
         </p>
       ) : null}
-      <p class="muted small">{t('late.note')}</p>
     </div>
   );
 }
@@ -246,7 +245,6 @@ function Detail() {
           <Button small variant="ghost" id="manual-remove-this" onClick={() => removeOccurrence(row.id, row.startMs)}>
             {t('manual.removeThis')}
           </Button>
-          <span class="muted small">{t('manual.removeThisNote')}</span>
         </div>
       ) : null}
       <p class="mark-state" id="mark-state" role="status">
@@ -265,7 +263,6 @@ function Detail() {
           </p>
         </div>
       ) : null}
-      <span class="muted small">{t('sessions.detail.note')}</span>
     </aside>
   );
 }

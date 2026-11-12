@@ -1,10 +1,11 @@
 // The settings cards added in P4b: appearance (theme), billing mode + credits, second currency, academic years.
 // Like the rest of the settings page this only shows what src/state hands it and collects input.
 
+import { useState } from 'preact/hooks';
 import { getCurrency, type CurrencyCode } from '../../core/money';
 import { CURRENCIES } from '../../data/currencies';
 import { t, type MessageKey } from '../../i18n';
-import { DEFAULT_CURRENCY, THEME_CHOICES, type ThemeChoice } from '../../state/config';
+import { DEFAULT_CURRENCY } from '../../state/config';
 import { readImportItems, type ImportFailureReason } from '../../state/calendars';
 import {
   RATES_DATE,
@@ -25,9 +26,9 @@ import { INTENSITIES, copyIntensity, setIntensity } from '../../state/intensity'
 import { chooseLanguage, languageChoice } from '../../state/language';
 import { LOCALES, type Locale } from '../../i18n';
 import type { Intensity } from '../../core/types';
-import { setTheme, themeChoice } from '../../state/theme';
+import { DEFAULT_SCALE, SCALE_MAX, SCALE_MIN, SCALE_STEP, setUiScale, uiScale } from '../../state/scale';
 import { yearViews } from '../../state/years';
-import { backupBusy, backupMessage, cancelImport, chooseBackupFile, confirmImport, exportBackup, importPending } from '../../state/backup';
+import { askReset, backupBusy, backupMessage, cancelImport, cancelReset, chooseBackupFile, confirmImport, confirmReset, exportBackup, importPending, resetBusy, resetError, resetPending } from '../../state/backup';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Button, ChoiceGroup, TextInput } from '../components/controls';
 import { FileButton } from '../components/FileButton';
@@ -43,18 +44,52 @@ const FAILURE_KEYS: Record<ImportFailureReason, MessageKey> = {
 
 // ------------------------------------------------------------------ appearance
 
+/**
+ * The interface-size slider. The size is applied when the handle is released (or a key moves it): zooming while it is
+ * dragged would resize the slider under the pointer. While dragging, only the number beside it follows.
+ */
+function ScaleRow() {
+  const saved = uiScale.value;
+  const [dragging, setDragging] = useState<number | null>(null);
+  const shown = dragging ?? saved;
+  return (
+    <div class="row-between settings-row scale-row">
+      <label for="settings-scale">{t('settings.scale')}</label>
+      <div class="scale-control">
+        <input
+          id="settings-scale"
+          class="scale-slider"
+          type="range"
+          min={SCALE_MIN}
+          max={SCALE_MAX}
+          step={SCALE_STEP}
+          value={shown}
+          aria-label={t('settings.scale.aria')}
+          aria-valuetext={`${shown}%`}
+          onInput={(e) => setDragging(Number((e.currentTarget as HTMLInputElement).value))}
+          onChange={(e) => {
+            setDragging(null);
+            setUiScale(Number((e.currentTarget as HTMLInputElement).value));
+          }}
+        />
+        <span class="num scale-value" data-field="scale-value">
+          {shown}%
+        </span>
+        <Button small variant="ghost" id="scale-reset" disabled={saved === DEFAULT_SCALE && dragging === null} onClick={() => setUiScale(DEFAULT_SCALE)}>
+          {t('settings.scale.reset')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+
 export function AppearanceCard() {
-  const options = THEME_CHOICES.map((value) => ({ value, label: t(`settings.theme.${value}` as const) }));
   return (
     <section class="card settings-card" id="card-appearance" aria-labelledby="appearance-title">
       <span class="label" id="appearance-title">
         {t('settings.appearance')}
       </span>
-      <div class="row-between settings-row">
-        <span>{t('settings.theme')}</span>
-        <ChoiceGroup<ThemeChoice> name="settings-theme" legend={t('settings.theme')} variant="seg" value={themeChoice.value} options={options} onChange={setTheme} />
-      </div>
-      <p class="muted small">{t('settings.themeNote')}</p>
       <div class="row-between settings-row">
         <span>{t('settings.language')}</span>
         <ChoiceGroup<Locale>
@@ -66,7 +101,6 @@ export function AppearanceCard() {
           onChange={chooseLanguage}
         />
       </div>
-      <p class="muted small">{t('settings.languageNote')}</p>
       <div class="row-between settings-row">
         <span>{t('settings.intensity')}</span>
         <ChoiceGroup<Intensity>
@@ -78,7 +112,7 @@ export function AppearanceCard() {
           onChange={setIntensity}
         />
       </div>
-      <p class="muted small">{t('settings.intensityNote')}</p>
+      <ScaleRow />
     </section>
   );
 }
@@ -101,7 +135,6 @@ export function BillingModeCard() {
       <p class="muted small" id="mode-note">
         {mode === 'credit' ? t('settings.mode.creditNote') : t('settings.mode.durationNote')}
       </p>
-      <p class="muted small">{t('settings.mode.switchNote')}</p>
       <span class="label" id="credits-title">
         {t('settings.credits.title')}
       </span>
@@ -139,7 +172,6 @@ export function BillingModeCard() {
           ))}
         </ul>
       )}
-      <p class="muted small">{t('settings.credits.hint')}</p>
     </section>
   );
 }
@@ -208,7 +240,6 @@ export function ExchangeCard() {
       <p class="muted small" id="rates-updated" data-date={RATES_DATE}>
         {t('settings.second.updated', { date: RATES_DATE })}
       </p>
-      <p class="muted small">{t('settings.second.note')}</p>
     </section>
   );
 }
@@ -284,7 +315,6 @@ function NewYearPanel() {
               </li>
             ))}
           </ul>
-          <p class="muted small">{t('newYear.tuitionHint')}</p>
         </>
       ) : null}
       {plan.rateChanges.length > 0 ? (
@@ -321,7 +351,7 @@ export function YearsCard() {
   };
   const busy = newYearBusy.value;
   return (
-    <section class="card settings-card settings-card--wide" id="card-years" aria-labelledby="years-title">
+    <section class="card settings-card" id="card-years" aria-labelledby="years-title">
       <span class="label" id="years-title">
         {t('years.title')}
       </span>
@@ -389,9 +419,8 @@ export function BackupCard() {
         <Button variant="ghost" id="backup-export" disabled={busy} onClick={() => void exportBackup()}>
           {t('backup.export')}
         </Button>
-        <FileButton id="backup-import-input" label={t('backup.import')} ariaLabel={t('backup.importAria')} accept=".json,application/json" onFiles={(files) => void chooseBackupFile(files[0])} />
+        <FileButton id="backup-import-input" label={t('backup.import')} ariaLabel={t('backup.importAria')} accept=".json,application/json" small={false} onFiles={(files) => void chooseBackupFile(files[0])} />
       </div>
-      <p class="muted small">{t('backup.subsNote')}</p>
       <div role="status" aria-live="polite" id="backup-status">
         {msg ? (
           <p class={msg.kind === 'error' ? 'field-error' : 'muted small'} data-kind={msg.kind}>
@@ -410,6 +439,41 @@ export function BackupCard() {
           onCancel={cancelImport}
         >
           <span class="muted small">{t('backup.confirm.note', { calendars: pending.calendars })}</span>
+        </ConfirmDialog>
+      ) : null}
+    </section>
+  );
+}
+
+// ------------------------------------------------------------------ reset everything
+
+export function ResetCard() {
+  return (
+    <section class="card settings-card" id="card-reset" aria-labelledby="reset-title">
+      <span class="label" id="reset-title">
+        {t('reset.title')}
+      </span>
+      <div class="row settings-row">
+        <Button variant="danger" id="reset-all" disabled={resetBusy.value} onClick={askReset}>
+          {t('reset.button')}
+        </Button>
+      </div>
+      {resetError.value ? (
+        <p class="field-error" role="alert" id="reset-error">
+          {resetError.value}
+        </p>
+      ) : null}
+      {resetPending.value ? (
+        <ConfirmDialog
+          id="reset-dialog"
+          caption={t('reset.confirm.title')}
+          heading={t('reset.confirm.heading')}
+          confirmLabel={t('reset.confirm.ok')}
+          cancelLabel={t('reset.confirm.cancel')}
+          onConfirm={() => void confirmReset()}
+          onCancel={cancelReset}
+        >
+          <span class="muted small">{t('reset.confirm.note')}</span>
         </ConfirmDialog>
       ) : null}
     </section>

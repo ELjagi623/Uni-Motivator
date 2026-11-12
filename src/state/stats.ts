@@ -2,12 +2,12 @@
 // of the two hand-drawn SVG charts (so the page itself does no arithmetic).
 
 import type { Pool } from '../core/billing';
-import { formatMinor, type CurrencyCode } from '../core/money';
-import { computeStats, historySummary, periodSummary, weekRange, type CourseStat, type PeriodSummary, type StatsInput } from '../core/stats';
+import { formatMinor, formatMinorWhole, type CurrencyCode } from '../core/money';
+import { computeStats, historySummary, niceAxis, periodSummary, weekRange, type CourseStat, type PeriodSummary, type StatsInput } from '../core/stats';
 import { yearRoleOf, type YearRole } from '../core/years';
 import { t } from '../i18n';
 import { dateText, minutesOf, type DashboardInputs } from './dashboard';
-import { addWeeks, attendanceText, isoWeekNumber, weekStartOf } from './sessions';
+import { addWeeks, attendanceText, isoWeekNumber, monthDay, weekStartOf } from './sessions';
 import { roleLabel, yearLabel } from './years';
 
 export interface PeriodView {
@@ -64,7 +64,37 @@ export interface WeeklyBar {
   slackHeight: number;
   /** The label under the bar (every few weeks), or ''. */
   tick: string;
-  title: string;
+  /** Centre of the label under the bar. */
+  tickX: number;
+  /** The hover slot: the bar's whole column of the plot. */
+  slotX: number;
+  slotWidth: number;
+  /** Where the hover preview sits over the chart, as CSS percentages: just above the bar, kept inside the width. */
+  tipLeft: string;
+  tipTop: string;
+  /** Text of the hover preview. */
+  weekText: string;
+  costText: string;
+  /** "" when there was no slacking that week. */
+  slackText: string;
+}
+
+export interface WeeklyTick {
+  /** Height in the chart (viewBox units). */
+  y: number;
+  /** "HK$2,500" */
+  label: string;
+}
+
+export interface WeeklyChartModel {
+  width: number;
+  height: number;
+  baseline: number;
+  /** Left edge of the plot; the amount labels of the value axis sit to the left of it. */
+  plotLeft: number;
+  plotRight: number;
+  ticks: WeeklyTick[];
+  bars: WeeklyBar[];
 }
 
 /** One line of the multi-year history: an academic year, or the total over all of them. */
@@ -99,14 +129,14 @@ export interface StatsModel {
   expensive: HighlightView | null;
   lossy: HighlightView | null;
   slack: SlackView;
-  weekly: { width: number; height: number; baseline: number; bars: WeeklyBar[] };
+  weekly: WeeklyChartModel;
   currency: CurrencyCode;
   /** Per-year history and its total; null while the timetable covers a single academic year. */
   history: HistoryView | null;
 }
 
 export const COURSE_CHART = { width: 600, rowHeight: 34, labelWidth: 150, barMax: 330, barHeight: 14 } as const;
-export const WEEKLY_CHART = { width: 600, height: 190, top: 14, bottom: 30, maxWeeks: 26 } as const;
+export const WEEKLY_CHART = { width: 600, height: 210, top: 14, bottom: 30, left: 76, right: 20, maxWeeks: 26 } as const;
 
 const rate1 = (r: number | null): string => (r === null ? t('sessions.noValue') : `${(r * 100).toFixed(1)}%`);
 
@@ -221,6 +251,7 @@ export function buildStatsModel(inputs: DashboardInputs, nowMs: number): StatsMo
   // Chart 2: the cost of each week (up to the last 26), with the slack part highlighted.
   const ended = inputs.sessions.filter((s) => s.endMs <= nowMs);
   const bars: WeeklyBar[] = [];
+  const ticks: WeeklyTick[] = [];
   const baseline = WEEKLY_CHART.height - WEEKLY_CHART.bottom;
   if (ended.length > 0) {
     const first = weekStartOf(Math.min(...ended.map((s) => s.startMs)));
@@ -229,9 +260,11 @@ export function buildStatsModel(inputs: DashboardInputs, nowMs: number): StatsMo
     for (let w = first; w <= last && starts.length < 200; w = addWeeks(w, 1)) starts.push(w);
     starts = starts.slice(-WEEKLY_CHART.maxWeeks);
     const sums = starts.map((from) => periodSummary(si, from, addWeeks(from, 1)));
-    const max = Math.max(1, ...sums.map((p) => p.costMinor));
-    const slot = WEEKLY_CHART.width / Math.max(starts.length, 1);
+    const axis = niceAxis(Math.max(1, ...sums.map((p) => p.costMinor)));
+    const max = axis.maxMinor;
+    const slot = (WEEKLY_CHART.width - WEEKLY_CHART.left - WEEKLY_CHART.right) / Math.max(starts.length, 1);
     const plotHeight = baseline - WEEKLY_CHART.top;
+    for (const v of axis.ticks) ticks.push({ y: baseline - (v / max) * plotHeight, label: formatMinorWhole(v, currency) });
     const every = Math.max(1, Math.ceil(starts.length / 8));
     starts.forEach((from, i) => {
       const p = sums[i];
@@ -239,14 +272,21 @@ export function buildStatsModel(inputs: DashboardInputs, nowMs: number): StatsMo
       const sh = p.slackMinor > 0 && p.costMinor > 0 ? Math.min(h, Math.max(2, (p.slackMinor / max) * plotHeight)) : 0;
       bars.push({
         key: from,
-        x: i * slot + slot * 0.15,
+        x: WEEKLY_CHART.left + i * slot + slot * 0.15,
         width: slot * 0.7,
         y: baseline - h,
         height: h,
         slackY: baseline - sh,
         slackHeight: sh,
         tick: i % every === 0 ? t('stats.weekTick', { n: isoWeekNumber(from) }) : '',
-        title: `${t('stats.weekTick', { n: isoWeekNumber(from) })} · ${formatMinor(p.costMinor, currency)}${p.slackMinor > 0 ? ` · ${t('stats.legendSlack')} ${formatMinor(p.slackMinor, currency)}` : ''}`,
+        tipLeft: `${(Math.min(Math.max(WEEKLY_CHART.left + i * slot + slot / 2, WEEKLY_CHART.left + 70), WEEKLY_CHART.width - WEEKLY_CHART.right - 50) / WEEKLY_CHART.width) * 100}%`,
+        tipTop: `${(Math.min(baseline - h, baseline - 4) / WEEKLY_CHART.height) * 100}%`,
+        tickX: WEEKLY_CHART.left + i * slot + slot / 2,
+        slotX: WEEKLY_CHART.left + i * slot,
+        slotWidth: slot,
+        weekText: t('sessions.weekLabel', { n: isoWeekNumber(from), from: monthDay(from), to: monthDay(addWeeks(from, 1) - 1) }),
+        costText: formatMinor(p.costMinor, currency),
+        slackText: p.slackMinor > 0 ? formatMinor(p.slackMinor, currency) : '',
       });
     });
   }
@@ -261,7 +301,7 @@ export function buildStatsModel(inputs: DashboardInputs, nowMs: number): StatsMo
     expensive: highlight(stats.mostExpensive),
     lossy: highlight(stats.mostLossy),
     slack,
-    weekly: { width: WEEKLY_CHART.width, height: WEEKLY_CHART.height, baseline, bars },
+    weekly: { width: WEEKLY_CHART.width, height: WEEKLY_CHART.height, baseline, plotLeft: WEEKLY_CHART.left, plotRight: WEEKLY_CHART.width - WEEKLY_CHART.right, ticks, bars },
     currency,
     history: buildHistory(inputs, nowMs),
   };

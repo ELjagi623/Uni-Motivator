@@ -8,12 +8,14 @@ export interface FileButtonProps {
   multiple?: boolean;
   /** The accept attribute (default: calendar files). */
   accept?: string;
+  /** Same size as the other buttons beside it: pass `false` for the full-size button (default: the small one). */
+  small?: boolean;
   onFiles: (files: FileList) => void;
 }
 
-export function FileButton({ id, label, ariaLabel, multiple, accept, onFiles }: FileButtonProps) {
+export function FileButton({ id, label, ariaLabel, multiple, accept, small = true, onFiles }: FileButtonProps) {
   return (
-    <label class="btn btn--ghost btn--small">
+    <label class={`btn btn--ghost${small ? ' btn--small' : ''}`}>
       <input
         class="sr-only"
         id={id}

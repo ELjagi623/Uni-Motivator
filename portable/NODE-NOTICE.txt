@@ -1,0 +1,6 @@
+This folder contains node.exe, the unmodified official Node.js runtime for Windows x64
+(v26.13.0, digitally signed by the OpenJS Foundation), so the app runs without installing Node.js.
+
+Node.js is released under the MIT license and bundles third-party components under their own licenses.
+Full license text: https://github.com/nodejs/node/blob/v26.13.0/LICENSE
+Source and official downloads: https://nodejs.org/

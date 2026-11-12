@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildPools } from '../../src/core/billing';
 import { skipCalculation } from '../../src/core/equivalents';
 import { DEFAULT_LEAD_MINUTES, END_GRACE_MS, dueReminders, endFigures, reminderKey } from '../../src/core/notify';
-import { computeStats, periodSummary, weekRange, type StatsInput, type StatsSession } from '../../src/core/stats';
+import { computeStats, niceAxis, periodSummary, weekRange, type StatsInput, type StatsSession } from '../../src/core/stats';
 import type { Course, MarkMap, SlackRecord } from '../../src/core/types';
 import { NORTHERN, at } from './helpers';
 
@@ -169,5 +169,22 @@ describe('reminders (notify)', () => {
     expect(none).toMatchObject({ slackSeconds: 0, slackMinutes: 0, slackMinor: 0 });
     const twoPieces = endFigures({ id: 'B1', startMs: sessions[2].startMs, endMs: sessions[2].endMs }, 10_000, rate, slacks, sessions[2].endMs);
     expect(twoPieces).toMatchObject({ slackMinutes: 18, slackMinor: 3_000 });
+  });
+});
+
+describe('niceAxis', () => {
+  it('rounds the top up to a round number with about four steps', () => {
+    expect(niceAxis(947_620)).toEqual({ stepMinor: 250_000, maxMinor: 1_000_000, ticks: [0, 250_000, 500_000, 750_000, 1_000_000] }); // 9,476.20 -> 0..10,000
+    expect(niceAxis(3_200_000).ticks).toEqual([0, 1_000_000, 2_000_000, 3_000_000, 4_000_000]);
+    expect(niceAxis(40_000).ticks).toEqual([0, 10_000, 20_000, 30_000, 40_000]); // 400.00 -> steps of 100.00
+  });
+  it('never goes below one currency unit per step and always covers the maximum', () => {
+    expect(niceAxis(0)).toEqual({ stepMinor: 100, maxMinor: 100, ticks: [0, 100] });
+    for (const max of [1, 99, 100, 101, 12_345, 987_654_321]) {
+      const axis = niceAxis(max);
+      expect(axis.maxMinor).toBeGreaterThanOrEqual(max);
+      expect(axis.stepMinor).toBeGreaterThanOrEqual(100);
+      expect(axis.ticks.at(-1)).toBe(axis.maxMinor);
+    }
   });
 });

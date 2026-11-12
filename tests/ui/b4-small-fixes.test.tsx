@@ -7,7 +7,7 @@ import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { COPY_LIBRARIES } from '../../src/core/copy';
 import { PRICE_PACK_HK, PRICE_PACK_TEXT, localizeItem } from '../../src/data/price-pack-hk';
-import { DEFAULT_LOCALE, setLocale, t } from '../../src/i18n';
+import { setLocale, t } from '../../src/i18n';
 import { manualSessions } from '../../src/state/derived';
 import { equivalentHint, equivalentOf } from '../../src/state/slack';
 import { skipTextOf } from '../../src/state/sessions';
@@ -16,11 +16,11 @@ import { NOWS } from '../state/fixture-app';
 
 beforeEach(() => {
   localStorage.clear();
-  setLocale(DEFAULT_LOCALE);
+  setLocale('zh-CN');
 });
 afterEach(() => {
   teardown();
-  setLocale(DEFAULT_LOCALE);
+  setLocale('zh-CN');
   localStorage.clear();
 });
 

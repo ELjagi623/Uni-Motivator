@@ -19,6 +19,8 @@ export default defineConfig({
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     // Pins process.env.TZ before any worker starts, so tests never depend on the machine time zone.
     globalSetup: ['tests/vitest-global-setup.ts'],
+    // Puts every test file in the zh-CN interface (the app itself starts in English).
+    setupFiles: ['tests/vitest-setup.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/core/**'],

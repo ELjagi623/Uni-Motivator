@@ -1,19 +1,20 @@
-// The 7-step first-run wizard: draft values, step guards, the live preview and the final config.
+// The 7-step first-run wizard (language, school and region, tuition, year dates, calendar, courses, preview): draft values, step guards, the live preview and the final config.
 // Pure helpers (taking the draft and sessions as arguments) are exported for tests; the signals at the bottom
 // bind them to the app state. All money maths is delegated to core.
 
 import { computed, signal } from '@preact/signals';
 import { checkSplitDate, formatMonthDay, parseMonthDay, type SplitCheckStatus } from '../core/academic';
-import { buildPools } from '../core/billing';
+import { buildPools, type Pool } from '../core/billing';
 import { COURSE_COLORS, courseFromGroup, groupSessions, type CourseGroup } from '../core/courses';
 import { formatMinor, getCurrency, majorToMinor, type CurrencyCode } from '../core/money';
-import type { AcademicConfig, Course, Session } from '../core/types';
+import type { AcademicConfig, Course, Session, TuitionConfig } from '../core/types';
 import { getRegionPreset, type RegionPreset } from '../data/regions';
 import { calendarNames, resetCalendarState } from './calendars';
 import { parseCreditsText } from './credits';
 import { DEFAULT_CURRENCY, type AppConfig, type CalendarSource } from './config';
-import { calendars, flushSaves, setConfig } from './data';
+import { calendars, config, flushSaves, setConfig } from './data';
 import { allSessions, billableOf } from './derived';
+import { languageChoice } from './language';
 
 export const TOTAL_STEPS = 7;
 export type BillingPeriod = AcademicConfig['billingPeriod'];
@@ -26,8 +27,10 @@ export interface OnboardingDraft {
   region: RegionId;
   billingPeriod: BillingPeriod;
   currency: CurrencyCode;
-  /** Tuition exactly as typed, in major units ("398,000"). */
+  /** Tuition exactly as typed, in major units ("398,000"): the whole year, or semester 1 when billing per semester. */
   tuitionText: string;
+  /** Semester 2's tuition as typed; null = no second semester was added (it then costs the same as semester 1). */
+  tuition2Text: string | null;
   yearStart: string;
   splitDate: string;
   /** Group key -> checked. A group without an entry uses its suggested state. */
@@ -47,6 +50,7 @@ export function initialDraft(): OnboardingDraft {
     billingPeriod: 'semester',
     currency: DEFAULT_CURRENCY,
     tuitionText: '',
+    tuition2Text: null,
     yearStart: preset.yearStart,
     splitDate: preset.splitDate,
     selection: {},
@@ -65,6 +69,32 @@ export function applyRegion(draft: OnboardingDraft, region: RegionId): Onboardin
 export function tuitionMinorOf(draft: Pick<OnboardingDraft, 'tuitionText'>): number | null {
   const minor = majorToMinor(draft.tuitionText);
   return minor !== null && minor > 0 ? minor : null;
+}
+
+/** Semester 2's tuition in minor units: null when it was not added, or is not a number greater than zero. */
+export function tuition2MinorOf(draft: Pick<OnboardingDraft, 'tuition2Text'>): number | null {
+  if (draft.tuition2Text === null) return null;
+  const minor = majorToMinor(draft.tuition2Text);
+  return minor !== null && minor > 0 ? minor : null;
+}
+
+/** The tuition step is complete: the first amount is valid, and so is the second one when it was added. */
+export function tuitionComplete(draft: Pick<OnboardingDraft, 'tuitionText' | 'tuition2Text' | 'billingPeriod'>): boolean {
+  if (tuitionMinorOf(draft) === null) return false;
+  return draft.billingPeriod !== 'semester' || draft.tuition2Text === null || tuition2MinorOf(draft) !== null;
+}
+
+/**
+ * The tuition document of the config: the first amount is the default for every pool; when billing per semester and a
+ * second amount was given, every second-semester pool of `pools` gets that amount of its own.
+ */
+export function tuitionConfigOf(draft: OnboardingDraft, pools: readonly Pick<Pool, 'key' | 'semester'>[]): TuitionConfig {
+  const first = tuitionMinorOf(draft);
+  if (draft.billingPeriod !== 'semester') return { defaultMinor: first };
+  const second = tuition2MinorOf(draft);
+  const byPool: Record<string, number | null> = {};
+  if (second !== null && second !== first) for (const pool of pools) if (pool.semester === 2) byPool[pool.key] = second;
+  return { defaultMinor: first, byPool };
 }
 
 export function isValidMonthDay(text: string): boolean {
@@ -178,13 +208,16 @@ export function buildPreview(draft: OnboardingDraft, sessions: readonly Session[
     return { courses, sessionCount: 0, hours: '0.0', pools: [], rate: null, average: null, splitChecks: [] };
   }
 
-  const pools = buildPools(billable, { academic, mode: 'duration', tuition: { defaultMinor: tuition } });
+  const firstPass = buildPools(billable, { academic, mode: 'duration', tuition: { defaultMinor: tuition } });
+  const tuitionConfig = tuitionConfigOf(draft, firstPass);
+  const pools = Object.keys(tuitionConfig.byPool ?? {}).length === 0 ? firstPass : buildPools(billable, { academic, mode: 'duration', tuition: tuitionConfig });
   const rates: number[] = [];
   const averages: number[] = [];
   const poolViews: PreviewPool[] = pools.map((pool) => {
     const rate = pool.averageRatePerSec / 100; // minor units per second -> major units per second
-    const average = tuition === null ? null : Math.round(tuition / pool.sessions.length);
-    if (tuition !== null) {
+    const poolTuition = pool.tuitionMinor;
+    const average = poolTuition === null ? null : Math.round(poolTuition / pool.sessions.length);
+    if (poolTuition !== null) {
       rates.push(rate);
       averages.push(average as number);
     }
@@ -194,7 +227,7 @@ export function buildPreview(draft: OnboardingDraft, sessions: readonly Session[
       semester: pool.semester,
       sessions: pool.sessions.length,
       hours: oneDecimal(pool.totalSeconds),
-      rate: tuition === null ? null : `${currencySymbol(draft.currency)}${rate.toFixed(4)}`,
+      rate: poolTuition === null ? null : `${currencySymbol(draft.currency)}${rate.toFixed(4)}`,
       average: average === null ? null : formatMinor(average, draft.currency),
     };
   });
@@ -238,7 +271,7 @@ export interface StepContext {
 export function canProceed(step: number, draft: OnboardingDraft, ctx: StepContext): boolean {
   switch (step) {
     case 3:
-      return tuitionMinorOf(draft) !== null;
+      return tuitionComplete(draft);
     case 4:
       return isValidMonthDay(draft.yearStart) && isValidMonthDay(draft.splitDate);
     case 5:
@@ -246,7 +279,7 @@ export function canProceed(step: number, draft: OnboardingDraft, ctx: StepContex
     case 6:
       return ctx.preview.sessionCount > 0;
     case 7:
-      return tuitionMinorOf(draft) !== null && ctx.preview.sessionCount > 0;
+      return tuitionComplete(draft) && ctx.preview.sessionCount > 0;
     default:
       return true;
   }
@@ -255,21 +288,22 @@ export function canProceed(step: number, draft: OnboardingDraft, ctx: StepContex
 // ------------------------------------------------------------------ the finished config
 
 /** The `config` document written when onboarding is completed. Returns null when the draft is not complete. */
-export function buildConfig(draft: OnboardingDraft, groups: readonly CourseGroup[], sources: readonly CalendarSource[]): AppConfig | null {
-  const tuition = tuitionMinorOf(draft);
-  if (tuition === null) return null;
+export function buildConfig(draft: OnboardingDraft, groups: readonly CourseGroup[], sources: readonly CalendarSource[], sessions: readonly Session[] = []): AppConfig | null {
+  if (!tuitionComplete(draft)) return null;
   const courses = selectedCourses(draft, groups);
   if (courses.length === 0) return null;
+  const academic = academicOf(draft);
+  const pools = buildPools(billableOf(sessions, courses), { academic, mode: 'duration', tuition: { defaultMinor: tuitionMinorOf(draft) } });
   return {
     schemaVersion: 1,
     onboardingDone: true,
     school: draft.school.trim(),
     region: draft.region,
     currency: draft.currency,
-    academic: academicOf(draft),
+    academic,
     billingMode: 'duration',
-    // Per-semester billing keeps an (initially empty) per-pool override table; per-year billing has a single pool.
-    tuition: draft.billingPeriod === 'semester' ? { defaultMinor: tuition, byPool: {} } : { defaultMinor: tuition },
+    // Per-semester billing keeps a per-pool table (a second semester's own amount goes in it); per-year billing has a single pool.
+    tuition: tuitionConfigOf(draft, pools),
     courses,
     calendars: [...sources],
   };
@@ -287,6 +321,15 @@ export function updateDraft(patch: Partial<OnboardingDraft>): void {
 
 export function chooseRegion(region: RegionId): void {
   draft.value = applyRegion(draft.value, region);
+}
+
+/** "+": add the second semester (an empty box to type its own amount in). */
+export function addSecondSemester(): void {
+  if (draft.value.tuition2Text === null) updateDraft({ tuition2Text: '' });
+}
+
+export function removeSecondSemester(): void {
+  updateDraft({ tuition2Text: null });
 }
 
 export function setGroupSelected(key: string, selected: boolean): void {
@@ -321,9 +364,11 @@ export function calendarSources(): CalendarSource[] {
 
 /** Write the finished config (saved at once) and leave the wizard. Returns false when something is still missing. */
 export async function finishOnboarding(): Promise<boolean> {
-  const built = buildConfig(draft.value, groups.value, calendarSources());
+  const built = buildConfig(draft.value, groups.value, calendarSources(), allSessions.value);
   if (!built) return false;
-  setConfig(built);
+  // The language chosen in step 1 and an interface size chosen earlier are not part of the wizard's draft: keep them.
+  const keep = config.peek();
+  setConfig({ ...built, language: languageChoice.peek(), ...(typeof keep.uiScale === 'number' ? { uiScale: keep.uiScale } : {}) });
   await flushSaves();
   draft.value = initialDraft();
   resetCalendarState();

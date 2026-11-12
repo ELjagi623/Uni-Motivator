@@ -100,15 +100,19 @@ describe('Onboarding wizard', () => {
     await mount();
     expect($('#prev-btn')?.hasAttribute('disabled')).toBe(true);
 
-    // 1 region (southern fills its preset dates on step 4), 2 period
+    // 1 language (next is always possible), 2 region (southern fills its preset dates on step 4)
+    expect($$('input[name="language"]')).toHaveLength(3);
+    await act(async () => {
+      $$('input[name="language"]')[0].click(); // 简体中文
+    });
+    await click('#next-btn');
+    expect($('#step-counter')?.textContent).toBe('2 / 7');
     await act(async () => {
       $$('input[name="region"]')[1].click();
     });
     await click('#next-btn');
-    expect($('#step-counter')?.textContent).toBe('2 / 7');
-    await click('#next-btn');
 
-    // 3 currency and tuition: next is disabled until the tuition is valid
+    // 3 billing period, currency and tuition: next is disabled until the tuition is valid
     expect($('#step-counter')?.textContent).toBe('3 / 7');
     expect($('#next-btn')?.hasAttribute('disabled')).toBe(true);
     await type('#tuition-input', '0');
@@ -137,6 +141,7 @@ describe('Onboarding wizard', () => {
     // 5 import: next stays disabled until a calendar is imported
     expect($('#step-counter')?.textContent).toBe('5 / 7');
     expect($('#next-btn')?.hasAttribute('disabled')).toBe(true);
+    expect($('#calendar-source-hint')?.textContent).toContain('选课网站');
     await act(async () => {
       await importFiles([{ name: 'full-term.ics', data: new Uint8Array(Buffer.from(fullTerm, 'utf8')) }]);
     });
@@ -171,7 +176,7 @@ describe('Onboarding wizard', () => {
 
     expect($('#shell')).not.toBeNull();
     const saved = server.docs.config;
-    expect(saved).toMatchObject({ onboardingDone: true, currency: 'HKD', region: 'southern', tuition: { defaultMinor: 39800000 }, academic: { yearStart: '08-01', splitDate: '12-25', billingPeriod: 'semester' } });
+    expect(saved).toMatchObject({ onboardingDone: true, language: 'zh-CN', currency: 'HKD', region: 'southern', tuition: { defaultMinor: 39800000 }, academic: { yearStart: '08-01', splitDate: '12-25', billingPeriod: 'semester' } });
   });
 
   it('"finish" is disabled when the tuition is empty, and step 7 sends the user back to step 3', async () => {
@@ -208,12 +213,45 @@ describe('Onboarding wizard', () => {
     expect($$('.steps li.done')).toHaveLength(3);
   });
 
-  it('labels the tuition field by billing period', async () => {
+  it('per year there is one box ending in "per year"; per semester it ends in "Semester 1" and a + adds semester 2 (the last one possible)', async () => {
     updateDraft({ step: 3, billingPeriod: 'year' });
     await mount();
-    expect(text()).toContain('一学年学费');
+    expect($('#tuition-input')).not.toBeNull();
+    expect($('.tuition-suffix')?.textContent).toBe('每学年');
+    expect($('#add-semester')).toBeNull();
+
     updateDraft({ billingPeriod: 'semester' });
     await flush();
-    expect(text()).toContain('每学期学费');
+    expect($('.tuition-suffix')?.textContent).toBe('学期一');
+    expect($('#tuition2-input')).toBeNull();
+
+    await click('#add-semester');
+    expect($('#add-semester')).toBeNull(); // two semesters is the most a year can have
+    expect($$('.tuition-suffix').map((e) => e.textContent)).toEqual(['学期一', '学期二']);
+    await type('#tuition-input', '200000');
+    expect($('#next-btn')?.hasAttribute('disabled')).toBe(true); // the added second box is still empty
+    await type('#tuition2-input', 'abc');
+    expect($('#tuition2-input-hint')?.getAttribute('role')).toBe('alert');
+    await type('#tuition2-input', '180000');
+    expect($('#next-btn')?.hasAttribute('disabled')).toBe(false);
+    expect($('#tuition2-input-hint')?.textContent).toContain('180,000.00');
+
+    await click('#tuition2-input-remove');
+    expect($('#tuition2-input')).toBeNull();
+    expect($('#add-semester')).not.toBeNull();
+    expect($('#next-btn')?.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('step 1 is the language: English is preselected on a new install and a click switches the interface at once', async () => {
+    const { languageChoice } = await import('../../src/state/language');
+    expect(languageChoice.value).toBe('en');
+    await mount();
+    expect($$('input[name="language"]').map((i) => i.parentElement?.textContent)).toEqual(['简体中文', '繁體中文', 'English']);
+    expect(($('input[name="language"][value="en"]') as HTMLInputElement).checked).toBe(true);
+    await act(async () => {
+      $$('input[name="language"]')[1].click(); // 繁體中文
+    });
+    expect(languageChoice.value).toBe('zh-TW');
+    expect(text()).toContain('下一步');
   });
 });

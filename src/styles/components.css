@@ -27,6 +27,12 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+/* A line of controls with a gap between them (text next to a checkbox, buttons side by side). */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
 .h1 {
   margin: 0;
   font: var(--fw-heavy) var(--fs-h1) / 1.2 var(--font-number);
@@ -241,6 +247,45 @@
   font-size: calc(var(--fs-h1) + 8px);
   line-height: 1.2;
 }
+/* Step 1 of the wizard: the three languages as big options. */
+.language-step .choice--chip {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  max-width: 420px;
+}
+.language-step .choice--chip .choice__label {
+  justify-content: center;
+  width: 100%;
+  min-height: 64px;
+  font-size: var(--fs-h2);
+}
+
+/* Step 3: one row per tuition amount (the year, or a semester). */
+.tuition-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.tuition-suffix {
+  flex: none;
+  white-space: nowrap;
+}
+.tuition-remove {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tuition-remove:hover {
+  color: var(--color-text);
+}
 .field-error {
   margin: 0;
   color: var(--color-danger);
@@ -263,7 +308,7 @@
 
 /* ------------------------------------------------------------------ app shell */
 .app {
-  min-height: 100vh;
+  min-height: calc(100vh / var(--ui-scale, 1.2)); /* zoom scales viewport units too */
   padding: var(--space-5) var(--space-4) var(--space-7);
 }
 .panel {

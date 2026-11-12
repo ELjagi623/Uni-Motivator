@@ -21,7 +21,6 @@ describe('settings page', () => {
     expect(h.$<HTMLInputElement>('input[name="settings-period"]:checked')?.value).toBe('semester');
     expect(h.$<HTMLInputElement>('input[name="settings-currency"]:checked')?.value).toBe('HKD');
     expect(h.$('#settings-calendar-list')?.textContent).toContain('full-term.ics');
-    expect(h.$('#card-time')?.textContent).toContain('自动对时');
     expect((h.$<HTMLButtonElement>('#settings-save') as HTMLButtonElement).disabled).toBe(true); // nothing changed yet
     expect(h.$('#settings-split-checks')?.textContent).toContain('分割日');
   });
@@ -42,7 +41,7 @@ describe('settings page', () => {
     const oldRate = 'HK$1.2708';
     const newRate = rateText(newPools[0].averageRatePerSec, 'HKD');
     expect(h.$('#rate-changes')?.textContent).toContain(`2026 学年 · 第 1 学期：单价将从 ${oldRate} 变为 ${newRate} / 秒`);
-    expect(dialog.textContent).toContain('已消耗 + 剩余仍等于学费');
+    expect(dialog.textContent).toContain('按新单价重新计算');
     expect(document.activeElement?.id).toBe('rate-dialog-cancel'); // focus starts on the safe choice
     expect(h.server.puts('config')).toHaveLength(0);
 
@@ -81,7 +80,6 @@ describe('settings page', () => {
     const second = h.$('#pool-fields li[data-pool-key="2026-S2"]')!;
     expect(second.getAttribute('data-unset')).toBe('true');
     expect(second.textContent).toContain('未设置学费');
-    expect(second.textContent).toContain('填写后才会开始计价');
     expect(h.$<HTMLInputElement>('#pool-tuition-2026-S2')?.value).toBe('');
     const first = h.$('#pool-fields li[data-pool-key="2026-S1"]')!;
     expect(first.getAttribute('data-unset')).toBe('false');

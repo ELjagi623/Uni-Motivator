@@ -49,7 +49,6 @@ export function resetHarnessState(): void {
   resetCurrencyState();
   resetNewYearState();
   setPrivacy(false);
-  document.documentElement.removeAttribute('data-theme');
   document.documentElement.removeAttribute('data-privacy');
   draft.value = initialDraft();
   demoActive.value = false;

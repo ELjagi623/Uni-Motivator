@@ -27,7 +27,7 @@ describe('built-in data', () => {
 
   it('has the two region presets', () => {
     expect(REGION_PRESETS).toHaveLength(2);
-    expect(getRegionPreset('northern')).toMatchObject({ yearStart: '08-01', splitDate: '12-25' });
+    expect(getRegionPreset('northern')).toMatchObject({ yearStart: '09-01', splitDate: '12-31' });
     expect(getRegionPreset('southern')).toMatchObject({ yearStart: '01-01', splitDate: '07-01' });
     expect(getRegionPreset('nowhere' as 'northern').id).toBe('northern');
   });

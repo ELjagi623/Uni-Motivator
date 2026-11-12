@@ -32,7 +32,7 @@ export const CLASS_END = hk('2026-11-12T13:00:00');
 
 export function fixtureConfig(tuitionText = '398000', billingPeriod: 'semester' | 'year' = 'semester'): AppConfig {
   const sessions = expandIcs(fullTermText);
-  const config = buildConfig({ ...initialDraft(), tuitionText, billingPeriod }, groupSessions(sessions), [{ id: 'cal-fixture', name: 'full-term.ics' }]);
+  const config = buildConfig({ ...initialDraft(), yearStart: '08-01', splitDate: '12-25', tuitionText, billingPeriod }, groupSessions(sessions), [{ id: 'cal-fixture', name: 'full-term.ics' }]);
   if (!config) throw new Error('fixture config could not be built');
   return config;
 }
@@ -63,7 +63,7 @@ export const NEXT_CLASS_ID = 'nx-mon-s1@fixture|2027-10-11T01:00:00Z';
 /** The config the wizard would build if both calendars had been imported at the start (three courses, 398,000 per semester). */
 export function twoYearConfig(tuitionText = '398000'): AppConfig {
   const sessions = [...expandIcs(fullTermText), ...expandIcs(nextYearText)];
-  const config = buildConfig({ ...initialDraft(), tuitionText }, groupSessions(sessions), [
+  const config = buildConfig({ ...initialDraft(), yearStart: '08-01', splitDate: '12-25', tuitionText }, groupSessions(sessions), [
     { id: 'cal-fixture', name: 'full-term.ics' },
     { id: 'cal-1', name: 'next-year.ics' },
   ]);

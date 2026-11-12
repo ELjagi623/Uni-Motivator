@@ -51,6 +51,8 @@ export interface TimelineItem {
   id: string;
   left: string;
   width: string;
+  /** The bar's left edge in percent of the timeline's width (the label under it starts there). */
+  leftPct: number;
   color: string;
   label: string;
   startText: string;
@@ -267,6 +269,7 @@ export function buildDashboardModel(inputs: DashboardInputs, nowMs: number): Das
       id: v.id,
       left: `${(((v.startMs - timelineStartMs) / span) * 100).toFixed(2)}%`,
       width: `${(((v.endMs - v.startMs) / span) * 100).toFixed(2)}%`,
+      leftPct: ((v.startMs - timelineStartMs) / span) * 100,
       color: v.courseColor,
       label: v.label,
       startText: v.startText,

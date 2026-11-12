@@ -17,7 +17,7 @@ export type MessageParams = Record<string, string | number>;
 export const dictionaries = { 'zh-CN': zhCN, 'zh-TW': zhTW, en } as const;
 export type Locale = keyof typeof dictionaries;
 export const LOCALES: readonly Locale[] = ['zh-CN', 'zh-TW', 'en'];
-export const DEFAULT_LOCALE: Locale = 'zh-CN';
+export const DEFAULT_LOCALE: Locale = 'en';
 export const LOCALE_STORAGE_KEY = 'tt.lang';
 
 export function isLocale(value: unknown): value is Locale {

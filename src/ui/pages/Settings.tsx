@@ -17,6 +17,7 @@ import {
   type ImportFailureReason,
 } from '../../state/calendars';
 import { navigate } from '../../state/router';
+import { SCHOOL_MAX_LENGTH, schoolName, setSchoolName } from '../../state/school';
 import { activeNow, minuteBucket } from '../../state/now';
 import { DEFAULT_REMINDERS } from '../../state/config';
 import {
@@ -46,7 +47,7 @@ import type { SubscriptionInfo } from '../../api/client';
 import { Button, ChoiceGroup, Checkbox, TextInput } from '../components/controls';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { FileButton } from '../components/FileButton';
-import { AppearanceCard, BackupCard, BillingModeCard, ExchangeCard, YearsCard } from './SettingsExtras';
+import { AppearanceCard, BackupCard, BillingModeCard, ExchangeCard, ResetCard, YearsCard } from './SettingsExtras';
 import { SplitChecks } from '../components/SplitChecks';
 
 const FAILURE_KEYS: Record<ImportFailureReason, MessageKey> = {
@@ -88,7 +89,6 @@ function TuitionCard() {
           options={CURRENCIES.map((c) => ({ value: c.code, label: c.code }))}
           onChange={(v) => editDraft({ currency: v })}
         />
-        <p class="muted small">{t('settings.currencyNote')}</p>
       </div>
       {view.pools.length === 0 ? (
         <p class="muted small" id="no-pools">
@@ -134,7 +134,6 @@ function TuitionCard() {
                     <span class="tag tag--cancel" data-field="unset-tag">
                       {t('settings.unset')}
                     </span>{' '}
-                    {t('settings.unsetHint')}
                   </>
                 ) : (
                   ''
@@ -158,6 +157,15 @@ function AcademicCard() {
         {t('settings.academic')}
       </span>
       <div class="field-group">
+        <div class="field">
+          <label class="muted" for="settings-school">
+            {t('settings.school')}
+          </label>
+          <span class="grow" />
+          <TextInput id="settings-school" className="school-input" value={schoolName.value} placeholder={t('onboarding.step2.schoolPlaceholder')} maxLength={SCHOOL_MAX_LENGTH} label={t('settings.school')} onInput={setSchoolName} />
+        </div>
+      </div>
+      <div class="field-group">
         <div class={`field${errors.yearStart ? ' field--invalid' : ''}`}>
           <label class="muted" for="settings-year-start">
             {t('settings.yearStart')}
@@ -179,9 +187,7 @@ function AcademicCard() {
         <p class="field-error" role="alert">
           {t('settings.dateInvalid')}
         </p>
-      ) : (
-        <p class="muted small">{t('settings.dateHelp')}</p>
-      )}
+      ) : null}
       <SplitChecks checks={view.splitChecks} id="settings-split-checks" onAdopt={(suggest) => void adoptSplitDate(suggest)} />
     </section>
   );
@@ -335,7 +341,6 @@ function CalendarCard() {
         ))}
       </ul>
       <ReplaceMessages />
-      <span class="muted small">{t('settings.reimportNote')}</span>
       <SubscribeForm />
       <SyncMessages />
     </section>
@@ -373,18 +378,6 @@ function RemindersCard() {
           </Button>
         </div>
       ) : null}
-      <p class="muted small">{t('settings.reminders.note')}</p>
-    </section>
-  );
-}
-
-function TimeCard() {
-  return (
-    <section class="card settings-card" id="card-time" aria-labelledby="time-title">
-      <span class="label" id="time-title">
-        {t('settings.time.title')}
-      </span>
-      <p class="muted small">{t('settings.time.note')}</p>
     </section>
   );
 }
@@ -452,7 +445,7 @@ export function Settings() {
         <AppearanceCard />
         <RemindersCard />
         <BackupCard />
-        <TimeCard />
+        <ResetCard />
       </div>
       <div class="panel__footer settings-footer">
         <span class={`grow${view.dirty ? ' accent' : ' muted'}`} id="settings-state" role="status">

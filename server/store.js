@@ -191,6 +191,7 @@ function checkConfig(config) {
       ['billingMode', oneOf(BILLING_MODES), listOf(BILLING_MODES)],
       ['language', oneOf(LOCALE_CODES), listOf(LOCALE_CODES)],
       ['intensity', oneOf(INTENSITIES), listOf(INTENSITIES)],
+      ['uiScale', (v) => isFiniteNumber(v) && v >= 50 && v <= 300, 'must be a number between 50 and 300'],
       ['theme', oneOf(THEME_CHOICES), listOf(THEME_CHOICES)],
     ]) ||
     checkObject(config, 'academic', 'config.academic', [

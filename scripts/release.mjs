@@ -66,8 +66,27 @@ export function buildZip(entries) {
   return zipSync(files);
 }
 
+/**
+ * The Windows portable edition: the same whitelist minus start.command, with portable/start.cmd as start.cmd and an
+ * unmodified Node.js runtime under runtime/. Throws when the node.exe path does not exist.
+ */
+export function collectPortableEntries(nodeExe, rootDir = root) {
+  if (!nodeExe || !fs.existsSync(nodeExe)) throw new Error(`release: node.exe not found: ${String(nodeExe)}`);
+  const entries = collectEntries(rootDir).filter((e) => e.name !== 'start.cmd' && e.name !== 'start.command');
+  entries.push({ name: 'start.cmd', abs: path.join(rootDir, 'portable', 'start.cmd') });
+  entries.push({ name: 'runtime/node.exe', abs: nodeExe });
+  entries.push({ name: 'runtime/NODE-NOTICE.txt', abs: path.join(rootDir, 'portable', 'NODE-NOTICE.txt') });
+  return entries;
+}
+
 function main() {
   const skipBuild = process.argv.includes('--skip-build');
+  const portableAt = process.argv.indexOf('--portable');
+  const nodeExe = portableAt >= 0 ? process.argv[portableAt + 1] : null;
+  if (portableAt >= 0 && (!nodeExe || nodeExe.startsWith('--'))) {
+    console.error('release: --portable needs the path of a node.exe');
+    process.exit(1);
+  }
   if (!skipBuild) {
     console.log('release: building app/ (npm run build) ...');
     const build = spawnSync('npm run build', { cwd: root, shell: true, stdio: 'inherit' });
@@ -81,11 +100,11 @@ function main() {
     console.error('release: package.json has no usable "version"');
     process.exit(1);
   }
-  const entries = collectEntries();
+  const entries = nodeExe ? collectPortableEntries(path.resolve(nodeExe)) : collectEntries();
   const zip = buildZip(entries);
   const outDir = path.join(root, 'release');
   fs.mkdirSync(outDir, { recursive: true });
-  const outFile = path.join(outDir, `tuition-ticker-v${pkg.version}.zip`);
+  const outFile = path.join(outDir, nodeExe ? `tuition-ticker-v${pkg.version}-win-x64-portable.zip` : `tuition-ticker-v${pkg.version}.zip`);
   fs.writeFileSync(outFile, zip);
   console.log(`release: ${entries.length} files -> ${path.relative(root, outFile)} (${(zip.length / 1024).toFixed(0)} KB)`);
   console.log('RELEASE_ZIP=' + outFile);

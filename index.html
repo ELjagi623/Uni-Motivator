@@ -1,22 +1,10 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
-    <script>
-      // Theme before the first paint (no flash of the wrong theme): the choice made in the settings is mirrored in
-      // localStorage (key tt.theme); "system" is stored as no entry at all. The app takes over once the config is loaded.
-      (function () {
-        try {
-          var choice = window.localStorage.getItem('tt.theme');
-          if (choice === 'light' || choice === 'dark') document.documentElement.setAttribute('data-theme', choice);
-        } catch (e) {
-          /* storage blocked: follow the system */
-        }
-      })();
-    </script>
-    <title>学费计价器</title>
+    <meta name="color-scheme" content="light" />
+    <title>Tuition Ticker</title>
   </head>
   <body>
     <div id="app"></div>

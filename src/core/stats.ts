@@ -277,6 +277,22 @@ export function weekRange(ms: number): { fromMs: number; toMs: number } {
   return { fromMs: new Date(d.getFullYear(), d.getMonth(), d.getDate() - sinceMonday).getTime(), toMs: new Date(d.getFullYear(), d.getMonth(), d.getDate() - sinceMonday + 7).getTime() };
 }
 
+/**
+ * A "nice" value axis from 0 up to at least `maxMinor`: the step is 1, 2, 2.5, 5 or 10 times a power of ten (never
+ * less than one whole currency unit), with about `targetTicks` steps. All values are in minor units (cents).
+ */
+export function niceAxis(maxMinor: number, targetTicks = 4): { stepMinor: number; maxMinor: number; ticks: number[] } {
+  const maxMajor = Math.max(1, maxMinor / 100);
+  const raw = maxMajor / Math.max(1, targetTicks);
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const norm = raw / magnitude;
+  const nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+  const stepMajor = Math.max(1, nice * magnitude);
+  const count = Math.max(1, Math.ceil(maxMajor / stepMajor - 1e-9));
+  const stepMinor = Math.round(stepMajor * 100);
+  return { stepMinor, maxMinor: stepMinor * count, ticks: Array.from({ length: count + 1 }, (_, i) => i * stepMinor) };
+}
+
 // ------------------------------------------------------------------ history over several academic years
 
 export interface YearHistory extends PeriodSummary {

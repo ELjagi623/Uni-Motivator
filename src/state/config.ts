@@ -20,11 +20,6 @@ export interface ReminderConfig {
 
 export const DEFAULT_REMINDERS: ReminderConfig = { enabled: false, leadMinutes: 5 };
 
-/** "system" follows the operating system's light / dark setting; the other two force one of the themes. */
-export type ThemeChoice = 'system' | 'light' | 'dark';
-export const THEME_CHOICES: readonly ThemeChoice[] = ['system', 'light', 'dark'];
-export const DEFAULT_THEME: ThemeChoice = 'system';
-
 export interface AppConfig {
   schemaVersion: number;
   /** True once the 7-step onboarding has been completed; until then the app shows the wizard. */
@@ -43,8 +38,10 @@ export interface AppConfig {
   language?: Locale;
   /** Tone of the copy lines: gentle / normal / extreme (default normal). */
   intensity?: Intensity;
-  /** Light / dark theme choice (default: follow the system). */
-  theme?: ThemeChoice;
+  /** Interface size in percent (70 - 200, default 120). */
+  uiScale?: number;
+  /** Obsolete: the dark theme was removed. Old data may still carry it; it is ignored but kept when saving. */
+  theme?: string;
   /**
    * A second currency shown as small text under the big numbers ("≈ ¥2,450"). Absent / null = off. The exchange rates
    * are the built-in table plus the user's overrides in `rates` (never fetched from the network).
